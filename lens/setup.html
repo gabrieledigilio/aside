@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aside: put it on your glasses</title>
+<link rel="icon" type="image/png" href="icon.png">
+<style>
+@font-face { font-family: 'Chakra Petch'; font-weight: 500; font-display: swap; src: url(fonts/chakra-petch-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'Chakra Petch'; font-weight: 700; font-display: swap; src: url(fonts/chakra-petch-latin-700-normal.woff2) format('woff2'); }
+:root { --ink: #f3fbff; --ion: #63e6ff; --mid: rgba(99, 230, 255, .6); --low: rgba(99, 230, 255, .22); --veil: rgba(99, 230, 255, .07); --amber: #ffb84d; --rose: #ff6f85; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #05090b; color: var(--ink); }
+body { font: 17px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; padding: 44px 28px 80px; }
+main { max-width: 980px; margin: 0 auto; }
+h1 { font: 700 40px/1.1 'Chakra Petch', system-ui, sans-serif; margin: 0 0 10px; letter-spacing: -.01em; }
+h2 { font: 700 24px/1.2 'Chakra Petch', system-ui, sans-serif; margin: 0 0 6px; }
+p { margin: 0 0 12px; max-width: 62ch; }
+.lead { color: rgba(243, 251, 255, .78); }
+a { color: var(--ion); }
+code { font: 15px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ion); word-break: break-all; }
+
+#status { margin: 26px 0 34px; padding: 16px 18px; border-left: 3px solid var(--mid); background: var(--veil); }
+#status.bad { border-left-color: var(--amber); }
+#status p { margin: 0 0 4px; max-width: none; }
+#status p:last-child { margin: 0; }
+#status b { font-weight: 600; }
+
+.routes { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+@media (max-width: 820px) { .routes { grid-template-columns: 1fr; } }
+.route { border: 1px solid var(--low); padding: 24px; display: flex; flex-direction: column; }
+.route .letter { font: 700 20px/1 'Chakra Petch', system-ui, sans-serif; color: var(--ion); margin-bottom: 10px; }
+.qr { margin: 16px 0 18px; width: 252px; height: 252px; background: #fff; padding: 14px; align-self: flex-start; }
+.qr canvas { display: block; width: 224px; height: 224px; image-rendering: pixelated; }
+.qr.off { background: transparent; border: 1px dashed var(--low); display: grid; place-items: center; color: rgba(243, 251, 255, .55); text-align: center; padding: 24px; font-size: 15px; }
+ol { margin: 0; padding-left: 22px; }
+li { margin: 0 0 8px; max-width: 46ch; }
+.note { margin-top: 34px; color: rgba(243, 251, 255, .7); font-size: 15.5px; }
+.note p { max-width: 80ch; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Put Aside on your glasses</h1>
+  <p class="lead">This page is for the Mac that runs Aside. Scan a code below with your iPhone's Camera app.</p>
+
+  <section id="status" aria-live="polite"><p>Checking the brain on this Mac…</p></section>
+
+  <div class="routes">
+    <section class="route">
+      <span class="letter">A</span>
+      <h2>Show the lens on the glasses</h2>
+      <p>Adds Aside to Meta Ray-Ban Display as a web app. The lens is drawn by the glasses themselves.</p>
+      <div class="qr off" id="qrA">Waiting for the outside link</div>
+      <ol>
+        <li>Scan the code. It opens the Meta AI app, which adds Aside to your glasses.</li>
+        <li>On the glasses, open Aside from your apps.</li>
+        <li>For sound, link the iPhone app with code B. Until then you can use “Test with this Mac’s mic” on the <a href="/">preview page</a>.</li>
+      </ol>
+    </section>
+
+    <section class="route">
+      <span class="letter">B</span>
+      <h2>Link the Aside iPhone app</h2>
+      <p>Lets the iPhone app use this Mac’s model key, so you never type the key on the phone, and lets the phone send what the glasses hear to this Mac.</p>
+      <div class="qr off" id="qrB">Waiting for the outside link</div>
+      <ol>
+        <li>Install the Aside app on your iPhone from Xcode first.</li>
+        <li>Scan the code. It opens Aside and saves the link.</li>
+        <li>In the app, choose where the thinking happens: on the phone or on this Mac.</li>
+      </ol>
+    </section>
+  </div>
+
+  <div class="note">
+    <p>The outside link is new every time Aside is restarted, so scan again after a restart. It works only while the Terminal window stays open, and this Mac stays awake while it does.</p>
+    <p>The link and its code are random. Someone who had both could read the lens while Aside runs, so do not post them. Aside keeps nothing on a server of its own: audio never leaves the phone, the words go to Meta’s model to be understood, and Aside drops them when the conversation ends.</p>
+  </div>
+</main>
+
+<script src="vendor/qrcode.js"></script>
+<script>
+(function () {
+  'use strict';
+  var status = document.getElementById('status');
+  var last = '';
+
+  function draw(id, text) {
+    var box = document.getElementById(id);
+    var qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    var n = qr.getModuleCount(), cell = 8;
+    var canvas = document.createElement('canvas');
+    canvas.width = canvas.height = n * cell;
+    var g = canvas.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, canvas.width, canvas.height);
+    g.fillStyle = '#000';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect(c * cell, r * cell, cell, cell);
+    box.className = 'qr';
+    box.replaceChildren(canvas);
+    box.setAttribute('role', 'img');
+    box.setAttribute('aria-label', 'QR code');
+  }
+  function clear(id) {
+    var box = document.getElementById(id);
+    box.className = 'qr off';
+    box.removeAttribute('role');
+    box.textContent = 'Waiting for the outside link';
+  }
+  function line(html) { var p = document.createElement('p'); p.innerHTML = html; return p; }
+
+  function refresh() {
+    fetch('info', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (info) {
+      var sig = JSON.stringify([info.publicUrl, info.link, info.mode]);
+      if (sig === last) return;
+      last = sig;
+      status.replaceChildren();
+      status.appendChild(line(info.mode === 'live'
+        ? '<b>Brain:</b> running with ' + info.fast.model + ' and ' + info.deep.model + '.'
+        : '<b>Brain:</b> running with scripted answers. Paste your Meta Model API key into key.txt to use the real models.'));
+      if (info.publicUrl && info.link) {
+        status.className = '';
+        status.appendChild(line('<b>Outside link:</b> <code>' + info.publicUrl + '</code>'));
+        var lens = info.publicUrl + '/k/' + encodeURIComponent(info.link) + '/';
+        draw('qrA', 'fb-viewapp://web_app_deep_link?appName=Aside&appUrl=' + encodeURIComponent(lens));
+        draw('qrB', 'gist://connect?brain=' + encodeURIComponent(info.publicUrl) + '&k=' + encodeURIComponent(info.link));
+      } else {
+        status.className = 'bad';
+        status.appendChild(line('<b>No outside link yet.</b> The glasses and the phone can only reach this Mac through one. Close the Terminal window, then double-click <b>Start Gist + glasses link</b> in the Gist folder. The link appears here within a minute.'));
+        clear('qrA'); clear('qrB');
+      }
+    }).catch(function () {
+      last = '';
+      status.className = 'bad';
+      status.replaceChildren(line('<b>The brain is not running.</b> Double-click <b>Start Gist + glasses link</b> in the Gist folder.'));
+      clear('qrA'); clear('qrB');
+    });
+  }
+  refresh();
+  setInterval(refresh, 2500);
+})();
+</script>
+</body>
+</html>

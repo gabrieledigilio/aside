@@ -1,0 +1,506 @@
+{
+ "fast": [
+  {
+   "gist": "A marketplace for leftover hackathon hardware",
+   "term_word": "",
+   "term_means": "",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "Events end with unclaimed boards and sensors",
+   "term_word": "dev boards",
+   "term_means": "small computers for prototyping",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "Organizers have supply, students have demand",
+   "term_word": "",
+   "term_means": "",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "The marketplace sits between both sides",
+   "term_word": "liquidity",
+   "term_means": "enough buyers and sellers to trade",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "They only match, they hold no stock",
+   "term_word": "asset-light",
+   "term_means": "owning almost nothing yourself",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "Revenue is ten percent of each swap",
+   "term_word": "take rate",
+   "term_means": "the platform's cut per sale",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "Two hundred events a year is the market",
+   "term_word": "",
+   "term_means": "",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "More events should feed a growth loop",
+   "term_word": "flywheel",
+   "term_means": "growth that feeds itself",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "There are two ways to ship",
+   "term_word": "",
+   "term_means": "",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "Ship each box, or pick up later",
+   "term_word": "margin",
+   "term_means": "what is left after costs",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "Launch at Junction, then organizers, then campuses",
+   "term_word": "",
+   "term_means": "",
+   "asked": "",
+   "replies": [],
+   "look": false
+  },
+  {
+   "gist": "He says the slide proves the numbers",
+   "term_word": "",
+   "term_means": "",
+   "asked": "",
+   "replies": [],
+   "look": true
+  },
+  {
+   "gist": "He wants to know if you're in",
+   "term_word": "",
+   "term_means": "",
+   "asked": "Would you join?",
+   "replies": [
+    "How many swaps a year?",
+    "Who pays for shipping?",
+    "Let me think about it"
+   ],
+   "look": false
+  }
+ ],
+ "deep": [
+  {
+   "scene": "points",
+   "title": "The idea",
+   "nodes": [],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [
+    "A marketplace for leftover hackathon hardware"
+   ],
+   "question": "Who owns the hardware after an event"
+  },
+  {
+   "scene": "map",
+   "title": "Where boards go",
+   "nodes": [
+    {
+     "id": "a",
+     "label": "Events"
+    },
+    {
+     "id": "b",
+     "label": "Leftover boards"
+    }
+   ],
+   "edges": [
+    {
+     "from": "a",
+     "to": "b",
+     "label": "leave"
+    }
+   ],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "How much hardware is really left over"
+  },
+  {
+   "scene": "map",
+   "title": "Two sides",
+   "nodes": [
+    {
+     "id": "a",
+     "label": "Organizers"
+    },
+    {
+     "id": "c",
+     "label": "Student teams"
+    }
+   ],
+   "edges": [
+    {
+     "from": "a",
+     "to": "c",
+     "label": "boards"
+    }
+   ],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "Why don't organizers just give boards away"
+  },
+  {
+   "scene": "map",
+   "title": "Who trades",
+   "nodes": [
+    {
+     "id": "a",
+     "label": "Organizers"
+    },
+    {
+     "id": "b",
+     "label": "Marketplace"
+    },
+    {
+     "id": "c",
+     "label": "Student teams"
+    }
+   ],
+   "edges": [
+    {
+     "from": "a",
+     "to": "b",
+     "label": "spare boards"
+    },
+    {
+     "from": "b",
+     "to": "c",
+     "label": "matches"
+    }
+   ],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "Why don't organizers just give boards away"
+  },
+  {
+   "scene": "map",
+   "title": "Who trades",
+   "nodes": [
+    {
+     "id": "a",
+     "label": "Organizers"
+    },
+    {
+     "id": "b",
+     "label": "Marketplace"
+    },
+    {
+     "id": "c",
+     "label": "Student teams"
+    }
+   ],
+   "edges": [
+    {
+     "from": "a",
+     "to": "b",
+     "label": "spare boards"
+    },
+    {
+     "from": "b",
+     "to": "c",
+     "label": "matches"
+    }
+   ],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "If you only match, who checks the boards work"
+  },
+  {
+   "scene": "stats",
+   "title": "The money",
+   "nodes": [],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [
+    {
+     "value": "10%",
+     "label": "take rate"
+    },
+    {
+     "value": "€40",
+     "label": "average box"
+    }
+   ],
+   "points": [],
+   "question": "So that is four euros a swap"
+  },
+  {
+   "scene": "stats",
+   "title": "The money",
+   "nodes": [],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [
+    {
+     "value": "10%",
+     "label": "take rate"
+    },
+    {
+     "value": "€40",
+     "label": "average box"
+    },
+    {
+     "value": "200",
+     "label": "events a year"
+    }
+   ],
+   "points": [],
+   "question": "Four euros a swap: how many swaps per event"
+  },
+  {
+   "scene": "loop",
+   "title": "Growth loop",
+   "nodes": [
+    {
+     "id": "e",
+     "label": "More events"
+    },
+    {
+     "id": "f",
+     "label": "More boards"
+    },
+    {
+     "id": "g",
+     "label": "More students"
+    },
+    {
+     "id": "h",
+     "label": "Faster listings"
+    }
+   ],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "Why would more students make organizers list faster"
+  },
+  {
+   "scene": "loop",
+   "title": "Growth loop",
+   "nodes": [
+    {
+     "id": "e",
+     "label": "More events"
+    },
+    {
+     "id": "f",
+     "label": "More boards"
+    },
+    {
+     "id": "g",
+     "label": "More students"
+    },
+    {
+     "id": "h",
+     "label": "Faster listings"
+    }
+   ],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "Why would more students make organizers list faster"
+  },
+  {
+   "scene": "compare",
+   "title": "Shipping",
+   "nodes": [],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "Organizer ships",
+   "left_points": [
+    "Slow",
+    "Eats the margin"
+   ],
+   "right_title": "Pickup at event",
+   "right_points": [
+    "Free",
+    "Takes weeks"
+   ],
+   "stats": [],
+   "points": [],
+   "question": "Would a student wait weeks for a sensor"
+  },
+  {
+   "scene": "steps",
+   "title": "Rollout",
+   "nodes": [],
+   "edges": [],
+   "steps": [
+    "Launch at Junction",
+    "Sign five organizers",
+    "Open to every campus"
+   ],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "What has to be true before step two"
+  },
+  {
+   "scene": "steps",
+   "title": "Rollout",
+   "nodes": [],
+   "edges": [],
+   "steps": [
+    "Launch at Junction",
+    "Sign five organizers",
+    "Open to every campus"
+   ],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [],
+   "points": [],
+   "question": "Which number on the slide is revenue"
+  },
+  {
+   "scene": "stats",
+   "title": "The money",
+   "nodes": [],
+   "edges": [],
+   "steps": [],
+   "current": 0,
+   "left_title": "",
+   "left_points": [],
+   "right_title": "",
+   "right_points": [],
+   "stats": [
+    {
+     "value": "10%",
+     "label": "take rate"
+    },
+    {
+     "value": "€40",
+     "label": "average box"
+    },
+    {
+     "value": "200",
+     "label": "events a year"
+    }
+   ],
+   "points": [],
+   "question": "Four euros a swap: how many swaps a year"
+  }
+ ],
+ "recap": {
+  "title": "Leftover hardware marketplace",
+  "points": [
+   "Match organizers' spare boards with student teams",
+   "Ten percent of a forty euro box",
+   "Launch at Junction, then five organizers"
+  ],
+  "actions": [
+   "Ask for swaps per event",
+   "Decide whether to join by Sunday"
+  ],
+  "open": "Who pays when shipping goes wrong"
+ },
+ "brief": {
+  "prep": [
+   "Ask if the display sleeps during listening",
+   "Check how far the mics hear",
+   "Book the next glasses slot"
+  ]
+ },
+ "look": {
+  "note": "Slide: revenue projection table",
+  "facts": [
+   "Year one: 2,000 swaps",
+   "Revenue: €8,000"
+  ]
+ },
+ "turn": {
+  "replies": [
+   "€4 a swap times how many swaps a year?",
+   "What does shipping one box cost?",
+   "I'd join after one paid pilot event"
+  ]
+ }
+}

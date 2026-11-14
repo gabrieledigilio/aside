@@ -1,0 +1,37 @@
+[
+  {
+    "gist": "Marketplace for leftover hackathon hardware",
+    "nodes": [{ "id": "a", "label": "Leftover hardware" }, { "id": "b", "label": "Marketplace" }],
+    "edges": [{ "from": "a", "to": "b" }],
+    "question": "Who actually owns the leftover hardware?",
+    "term": null
+  },
+  {
+    "gist": "Match organizers' spare boards with student teams",
+    "nodes": [{ "id": "a", "label": "Organizers" }, { "id": "b", "label": "Marketplace" }, { "id": "c", "label": "Student teams" }],
+    "edges": [{ "from": "a", "to": "b", "label": "supply" }, { "from": "b", "to": "c", "label": "boards" }],
+    "question": "Why don't organizers just give the boards away?",
+    "term": { "word": "liquidity", "means": "enough buyers and sellers to trade" }
+  },
+  {
+    "gist": "Match-only marketplace taking ten percent",
+    "nodes": [{ "id": "a", "label": "Organizers" }, { "id": "b", "label": "Marketplace" }, { "id": "c", "label": "Student teams" }, { "id": "d", "label": "10% cut" }],
+    "edges": [{ "from": "a", "to": "b", "label": "supply" }, { "from": "b", "to": "c", "label": "boards" }, { "from": "b", "to": "d", "label": "earns" }],
+    "question": "Ten percent of what price, if boards were free?",
+    "term": { "word": "take rate", "means": "the platform's cut per sale" }
+  },
+  {
+    "gist": "More events feed a growth loop",
+    "nodes": [{ "id": "a", "label": "Organizers" }, { "id": "b", "label": "Marketplace" }, { "id": "c", "label": "Student teams" }, { "id": "d", "label": "10% cut" }, { "id": "e", "label": "More events" }],
+    "edges": [{ "from": "e", "to": "a", "label": "more" }, { "from": "a", "to": "b", "label": "supply" }, { "from": "b", "to": "c", "label": "boards" }, { "from": "b", "to": "d", "label": "earns" }],
+    "question": "What makes students come back after one swap?",
+    "term": { "word": "flywheel", "means": "growth that feeds itself" }
+  },
+  {
+    "gist": "Launch at Junction; shipping is unsolved",
+    "nodes": [{ "id": "a", "label": "Organizers" }, { "id": "b", "label": "Marketplace" }, { "id": "c", "label": "Student teams" }, { "id": "d", "label": "10% cut" }, { "id": "e", "label": "Shipping ?" }],
+    "edges": [{ "from": "a", "to": "b", "label": "supply" }, { "from": "b", "to": "e" }, { "from": "e", "to": "c", "label": "boards" }, { "from": "b", "to": "d", "label": "earns" }],
+    "question": "Who pays for shipping, and does it kill the margin?",
+    "term": { "word": "cold start", "means": "getting first users on both sides" }
+  }
+]

@@ -1,0 +1,442 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		61570000010000000000000B /* GistApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000002 /* GistApp.swift */; };
+		61570000010000000000000C /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000003 /* AppModel.swift */; };
+		61570000010000000000000D /* GlassesLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000004 /* GlassesLink.swift */; };
+		61570000010000000000000E /* LensHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000005 /* LensHost.swift */; };
+		61570000010000000000000F /* Transcriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000006 /* Transcriber.swift */; };
+		615700000100000000000010 /* PhoneAudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000007 /* PhoneAudio.swift */; };
+		615700000100000000000011 /* DayReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000008 /* DayReader.swift */; };
+		615700000100000000000012 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000009 /* ContentView.swift */; };
+		615700000100000000000013 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61570000020000000000000A /* SettingsView.swift */; };
+		615700000100000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000014 /* Assets.xcassets */; };
+		615700000100000000000017 /* lens in Resources */ = {isa = PBXBuildFile; fileRef = 615700000200000000000016 /* lens */; };
+		61570000010000000000001F /* MWDATCore in Frameworks */ = {isa = PBXBuildFile; productRef = 615700000A0000000000001A /* MWDATCore */; };
+		615700000100000000000020 /* MWDATCamera in Frameworks */ = {isa = PBXBuildFile; productRef = 615700000A0000000000001B /* MWDATCamera */; };
+		615700000100000000000021 /* MWDATDisplay in Frameworks */ = {isa = PBXBuildFile; productRef = 615700000A0000000000001C /* MWDATDisplay */; };
+		615700000100000000000022 /* MWDATSpeech in Frameworks */ = {isa = PBXBuildFile; productRef = 615700000A0000000000001D /* MWDATSpeech */; };
+		615700000100000000000023 /* MWDATMockDevice in Frameworks */ = {isa = PBXBuildFile; productRef = 615700000A0000000000001E /* MWDATMockDevice */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		61570000050000000000002C /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		615700000200000000000001 /* Gist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gist.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		615700000200000000000002 /* GistApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GistApp.swift; sourceTree = "<group>"; };
+		615700000200000000000003 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		615700000200000000000004 /* GlassesLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassesLink.swift; sourceTree = "<group>"; };
+		615700000200000000000005 /* LensHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LensHost.swift; sourceTree = "<group>"; };
+		615700000200000000000006 /* Transcriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcriber.swift; sourceTree = "<group>"; };
+		615700000200000000000007 /* PhoneAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAudio.swift; sourceTree = "<group>"; };
+		615700000200000000000008 /* DayReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayReader.swift; sourceTree = "<group>"; };
+		615700000200000000000009 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		61570000020000000000000A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		615700000200000000000014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		615700000200000000000016 /* lens */ = {isa = PBXFileReference; lastKnownFileType = folder; name = lens; path = ../lens; sourceTree = SOURCE_ROOT; };
+		615700000200000000000018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		615700000200000000000019 /* Gist.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Gist.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		61570000050000000000002A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				61570000010000000000001F /* MWDATCore in Frameworks */,
+				615700000100000000000020 /* MWDATCamera in Frameworks */,
+				615700000100000000000021 /* MWDATDisplay in Frameworks */,
+				615700000100000000000022 /* MWDATSpeech in Frameworks */,
+				615700000100000000000023 /* MWDATMockDevice in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		615700000300000000000024 = {
+			isa = PBXGroup;
+			children = (
+				615700000300000000000026 /* Gist */,
+				615700000200000000000016 /* lens */,
+				615700000300000000000025 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		615700000300000000000025 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				615700000200000000000001 /* Gist.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		615700000300000000000026 /* Gist */ = {
+			isa = PBXGroup;
+			children = (
+				615700000200000000000002 /* GistApp.swift */,
+				615700000200000000000003 /* AppModel.swift */,
+				615700000200000000000004 /* GlassesLink.swift */,
+				615700000200000000000005 /* LensHost.swift */,
+				615700000200000000000006 /* Transcriber.swift */,
+				615700000200000000000007 /* PhoneAudio.swift */,
+				615700000200000000000008 /* DayReader.swift */,
+				615700000200000000000009 /* ContentView.swift */,
+				61570000020000000000000A /* SettingsView.swift */,
+				615700000200000000000014 /* Assets.xcassets */,
+				615700000200000000000019 /* Gist.entitlements */,
+				615700000200000000000018 /* Info.plist */,
+			);
+			path = Gist;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		615700000400000000000027 /* Gist */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 615700000700000000000031 /* Build configuration list for PBXNativeTarget "Gist" */;
+			buildPhases = (
+				615700000500000000000029 /* Sources */,
+				61570000050000000000002A /* Frameworks */,
+				61570000050000000000002B /* Resources */,
+				61570000050000000000002C /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Gist;
+			packageProductDependencies = (
+				615700000A0000000000001A /* MWDATCore */,
+				615700000A0000000000001B /* MWDATCamera */,
+				615700000A0000000000001C /* MWDATDisplay */,
+				615700000A0000000000001D /* MWDATSpeech */,
+				615700000A0000000000001E /* MWDATMockDevice */,
+			);
+			productName = Gist;
+			productReference = 615700000200000000000001 /* Gist.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		615700000800000000000028 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					615700000400000000000027 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = 615700000700000000000032 /* Build configuration list for PBXProject "Gist" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 615700000300000000000024;
+			packageReferences = (
+				615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */,
+			);
+			productRefGroup = 615700000300000000000025 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				615700000400000000000027 /* Gist */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		61570000050000000000002B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				615700000100000000000015 /* Assets.xcassets in Resources */,
+				615700000100000000000017 /* lens in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		615700000500000000000029 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				61570000010000000000000B /* GistApp.swift in Sources */,
+				61570000010000000000000C /* AppModel.swift in Sources */,
+				61570000010000000000000D /* GlassesLink.swift in Sources */,
+				61570000010000000000000E /* LensHost.swift in Sources */,
+				61570000010000000000000F /* Transcriber.swift in Sources */,
+				615700000100000000000010 /* PhoneAudio.swift in Sources */,
+				615700000100000000000011 /* DayReader.swift in Sources */,
+				615700000100000000000012 /* ContentView.swift in Sources */,
+				615700000100000000000013 /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		61570000060000000000002D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Gist/Gist.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Gist/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gabrieledigilio.gist;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		61570000060000000000002E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Gist/Gist.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = Gist/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gabrieledigilio.gist;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		61570000060000000000002F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		615700000600000000000030 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		615700000700000000000031 /* Build configuration list for PBXNativeTarget "Gist" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				61570000060000000000002D /* Debug */,
+				61570000060000000000002E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		615700000700000000000032 /* Build configuration list for PBXProject "Gist" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				61570000060000000000002F /* Debug */,
+				615700000600000000000030 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/meta-wearables-dat-ios";
+			requirement = {
+				kind = exactVersion;
+				version = 1.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		615700000A0000000000001A /* MWDATCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCore;
+		};
+		615700000A0000000000001B /* MWDATCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATCamera;
+		};
+		615700000A0000000000001C /* MWDATDisplay */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATDisplay;
+		};
+		615700000A0000000000001D /* MWDATSpeech */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATSpeech;
+		};
+		615700000A0000000000001E /* MWDATMockDevice */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 615700000900000000000033 /* XCRemoteSwiftPackageReference "meta-wearables-dat-ios" */;
+			productName = MWDATMockDevice;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 615700000800000000000028 /* Project object */;
+}

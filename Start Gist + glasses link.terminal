@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandString</key>
+	<string>/bin/zsh -lic 'cd ~/Desktop/Gist || exit; lsof -ti tcp:8787 | xargs kill 2&gt;/dev/null; pkill -f "tunnel --url http://localhost:8787" 2&gt;/dev/null; sleep 0.5; : &gt; tunnel.log; if ! command -v node &gt;/dev/null; then echo "Node.js is not installed. Get it from https://nodejs.org and then double-click this again."; else echo "Opening an outside link so the glasses and the phone can reach this Mac. The first time takes about a minute."; ( if command -v cloudflared &gt;/dev/null; then cloudflared tunnel --url http://localhost:8787; else npx --yes cloudflared tunnel --url http://localhost:8787; fi ) &gt; tunnel.log 2&gt;&amp;1 &amp; (sleep 2; open http://localhost:8787/setup) &amp; caffeinate -ims node --watch brain/brain.mjs serve; fi'</string>
+	<key>RunCommandAsShell</key>
+	<false/>
+	<key>ProfileCurrentVersion</key>
+	<real>2.07</real>
+	<key>name</key>
+	<string>Start Gist + glasses link</string>
+	<key>type</key>
+	<string>Window Settings</string>
+</dict>
+</plist>

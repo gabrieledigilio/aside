@@ -1,0 +1,10 @@
+.env
+key.txt
+data/
+tunnel.log
+node_modules
+.DS_Store
+xcuserdata/
+*.xcuserstate
+ios/build/
+DerivedData/

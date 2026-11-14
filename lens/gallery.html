@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aside: every scene</title>
+<style>
+  body { margin: 0; padding: 28px; background: #05080a; color: #dff; font: 15px/1.5 system-ui, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 22px; color: #9bb; max-width: 70ch; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, 300px); gap: 26px 22px; }
+  figure { margin: 0; }
+  .frame { width: 300px; height: 300px; overflow: hidden; background: #000; outline: 1px solid #1d2a30; }
+  iframe { width: 600px; height: 600px; border: 0; transform: scale(.5); transform-origin: 0 0; }
+  figcaption { margin-top: 8px; color: #9bb; }
+  figcaption b { color: #dff; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Every scene the lens can show</h1>
+<p>The brain picks one of these from the shape of what is being said. Each frame is the real lens at half size, showing built-in sample content.</p>
+<div class="grid" id="grid"></div>
+<script>
+  const scenes = [
+    ['standby', 'Standing by', 'Nobody is talking. Time, what is next, what is still open.'],
+    ['brief', 'Up next', 'Shortly before a calendar event.'],
+    ['empty', 'First seconds', 'Listening, before there is enough to draw.'],
+    ['points', 'Key points', 'No clear structure yet.'],
+    ['map', 'Map', 'How things connect.'],
+    ['map4', 'Map, four parts', 'A longer chain folds into two rows.'],
+    ['stats', 'Numbers', 'The talk hinges on figures.'],
+    ['loop', 'Loop', 'A cycle or flywheel.'],
+    ['compare', 'Two sides', 'Options being weighed.'],
+    ['steps', 'Steps', 'A plan or process.'],
+    ['seen', 'Seen', 'After reading what the wearer is looking at.'],
+    ['turn', 'Your turn', 'They asked the wearer something.'],
+    ['paused', 'Paused', 'Nothing is being heard.'],
+    ['recap', 'Recap', 'After the conversation ends.'],
+  ];
+  const grid = document.getElementById('grid');
+  for (const [key, name, when] of scenes) {
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<div class="frame"><iframe src="index.html?show=${key}" title="${name}" loading="lazy"></iframe></div><figcaption><b>${name}</b><br>${when}</figcaption>`;
+    grid.append(fig);
+  }
+</script>
+</body>
+</html>
