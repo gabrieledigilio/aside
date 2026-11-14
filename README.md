@@ -1,6 +1,6 @@
 # Aside
 
-Comprehension, not captions. While someone explains something to you, your glasses show the point so far, a small picture of the idea that changes shape with what is being said, and the one question worth asking. When they put a question to you, Aside offers three things you could say. Afterwards it keeps a short recap and what is left for you to do, and uses that to brief you before your next event.
+Better with every conversation. While someone explains something to you, your glasses show the point so far, a small picture of the idea that changes shape with what is being said, and the one question worth asking. When they put a question to you, Aside offers three things you could say. Afterwards it keeps a short recap and what is left for you to do, and uses that to brief you before your next event.
 
 Built for Meta Ray-Ban Display (and, by voice, for Ray-Ban Meta Gen 2) at Junction 2026.
 
@@ -33,7 +33,7 @@ Once the glasses are in reach the lens stands by on their display, with real but
 
 ## How it follows a conversation
 
-The fast lane does not caption. After each stretch of speech it first decides whether the line on the glasses is still a true answer to "what are they talking about right now?". Small talk, agreement, filler and misheard fragments leave the lens alone. A new claim sharpens the line. A new subject replaces it at once and clears the picture. The deep lane draws the idea on the table, keeps the picture through chit-chat, and changes scene when the shape of the idea changes (a map, a loop, steps, two sides, numbers). The glasses hear the wearer too. With the glasses' own microphones each line is marked as the wearer's or someone else's (see below); without that, both lanes are told that the transcript holds everyone's words with no speaker labels. An opinion or a disputed claim is shown as "Claim: ...", so the lens never states as fact what is only someone's view.
+The fast lane does not echo the words. After each stretch of speech it first decides whether the line on the glasses is still a true answer to "what are they talking about right now?". Small talk, agreement, filler and misheard fragments leave the lens alone. A new claim sharpens the line. A new subject replaces it at once and clears the picture. The deep lane draws the idea on the table, keeps the picture through chit-chat, and changes scene when the shape of the idea changes (a map, a loop, steps, two sides, numbers). The glasses hear the wearer too. With the glasses' own microphones each line is marked as the wearer's or someone else's (see below); without that, both lanes are told that the transcript holds everyone's words with no speaker labels. An opinion or a disputed claim is shown as "Claim: ...", so the lens never states as fact what is only someone's view.
 
 ## Hearing the other person
 
