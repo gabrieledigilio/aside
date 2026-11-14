@@ -42,10 +42,14 @@ struct SettingsView: View {
         Text("English").tag("en-US")
         Text("Italiano").tag("it-IT")
       }
+      Toggle("Use the Bluetooth mic if the camera stream won’t start", isOn: $model.bluetoothWhenStreamFails)
+      Toggle("Lift quiet voices", isOn: $model.liftQuietVoices)
+      TextField("Names to listen for, with commas", text: $model.listenFor, axis: .vertical)
+        .autocorrectionDisabled()
     } header: {
       Text("Ears")
     } footer: {
-      Text(model.ears.detail + " The sound is thrown away as soon as it is text. iOS does that on this iPhone when it can for the language; Aside shows which while it listens.")
+      Text(model.ears.detail + " The sound is thrown away as soon as it is text. iOS does that on this iPhone when it can for the language; Aside shows which while it listens. The glasses’ microphones sit next to your mouth, so you arrive much louder than the person across the table: “Lift quiet voices” evens that out before the words are recognised. In a loud room nothing replaces being close: within arm’s reach, or the iPhone’s microphone next to the speaker. Names the iPhone has never met (your company, a product, a person) come out as the nearest ordinary word unless you list them here; the list stays on this phone.")
     }
   }
 
@@ -53,12 +57,18 @@ struct SettingsView: View {
     Section {
       Toggle("Show the lens on the glasses", isOn: $model.showOnGlasses)
       Toggle("Send plain text instead of the drawn lens", isOn: $model.plainOnGlasses)
+      Toggle("Buttons on the glasses, for the band", isOn: $model.buttonsOnGlasses)
+      Toggle("During a conversation, show them only after a pinch", isOn: $model.barOnPinch)
+        .disabled(!model.buttonsOnGlasses)
+      Toggle("Look by itself during a conversation", isOn: $model.lookByItself)
+      Toggle("Come back after another glasses app closes Aside", isOn: $model.returnToGlasses)
+      Toggle("Stay connected to the glasses between conversations", isOn: $model.keepGlassesSession)
       Toggle("Say the question in my ear", isOn: $model.whisper)
       Toggle("Keep the camera ready", isOn: $model.cameraForLook)
     } header: {
       Text("On the glasses")
     } footer: {
-      Text("Plain text is the fallback if drawn frames arrive slowly. Saying the question is for glasses with no display; it is only ever spoken through the glasses or headphones, never the iPhone’s speaker. The camera is only used when you tap the lens or press Look, or when someone says “as you can see”; with “Glasses microphones” it is already on.")
+      Text("Plain text is the fallback if drawn frames arrive slowly. Saying the question is for glasses with no display; it is only ever spoken through the glasses or headphones, never the iPhone’s speaker. With “Look by itself” on, the glasses take a photo about every ten seconds while a conversation is going; it is sent to the model to be read and then dropped, never stored. On today’s glasses each photo stops their microphones for a few seconds, so it is off to begin with, and Aside switches it off again if a photo costs sound. With it off, the camera is only used when you press Look or when someone says “as you can see”.")
     }
   }
 

@@ -27,20 +27,20 @@ enum Ears: String, CaseIterable, Identifiable {
     case .glassesStream: return "Glasses microphones"
     case .glassesSpeech: return "Glasses speech"
     case .glassesBluetooth: return "Glasses Bluetooth mic"
-    case .phone: return "This iPhone (testing only)"
+    case .phone: return "This iPhone’s microphone"
     }
   }
 
   var detail: String {
     switch self {
     case .glassesStream:
-      return "The glasses’ own microphones, carried by their camera stream. Hears the room, so it hears the person talking to you. The capture light on the glasses stays on, which also tells the other person."
+      return "The glasses’ own microphones, carried by their camera stream. They sit next to your mouth, so the person talking to you arrives much quieter than you do; Aside lifts quiet voices to make up for it. The capture light on the glasses stays on, which also tells the other person."
     case .glassesSpeech:
       return "The glasses turn speech into text themselves and send only the text. Lightest on battery. Tuned for the wearer’s voice, so it may miss the other person."
     case .glassesBluetooth:
       return "The glasses’ microphone the way a headset sends it. Works on every pair, lower quality, closest to the wearer."
     case .phone:
-      return "The iPhone’s microphone. Only for trying Aside with no glasses at hand."
+      return "The iPhone’s microphone. For a loud room, or a speaker who is far from you: put the phone near them. The glasses still show the lens. Also the way to try Aside with no glasses at hand."
     }
   }
 
@@ -135,10 +135,25 @@ final class AppModel: ObservableObject {
   // Settings, kept between launches.
   @Published var ears: Ears { didSet { store.set(ears.rawValue, forKey: "ears"); restartIfListening() } }
   @Published var brainPlace: BrainPlace { didSet { store.set(brainPlace.rawValue, forKey: "brainPlace"); loadLens() } }
-  @Published var showOnGlasses: Bool { didSet { store.set(showOnGlasses, forKey: "showOnGlasses"); restartIfListening() } }
+  @Published var showOnGlasses: Bool { didSet { store.set(showOnGlasses, forKey: "showOnGlasses"); showOnGlassesChanged() } }
   @Published var plainOnGlasses: Bool { didSet { store.set(plainOnGlasses, forKey: "plainOnGlasses"); sharpAgain(); lens.call("redraw") } }
   @Published var mobileDataBackup: Bool { didSet { store.set(mobileDataBackup, forKey: "mobileDataBackup"); lens.allowMobileData = mobileDataBackup } }
   @Published var cameraForLook: Bool { didSet { store.set(cameraForLook, forKey: "cameraForLook"); restartIfListening() } }
+  @Published var lookByItself: Bool { didSet { store.set(lookByItself, forKey: "lookByItself"); looksBreakTheStream = false } }
+  @Published var returnToGlasses: Bool { didSet { store.set(returnToGlasses, forKey: "returnToGlasses") } }
+  /// When listening stops, only the camera stream stops: the session and the display stay up.
+  @Published var keepGlassesSession: Bool { didSet { store.set(keepGlassesSession, forKey: "keepGlassesSession") } }
+  @Published var bluetoothWhenStreamFails: Bool { didSet { store.set(bluetoothWhenStreamFails, forKey: "bluetoothWhenStreamFails") } }
+  /// Quiet voices are lifted and the wearer's own voice held down before the words are recognised.
+  @Published var liftQuietVoices: Bool { didSet { store.set(liftQuietVoices, forKey: "liftQuietVoices"); transcriber.setLifting(liftQuietVoices) } }
+  /// Names and unusual words to listen for, separated by commas. Kept on this phone only.
+  @Published var listenFor: String { didSet { store.set(listenFor, forKey: "listenFor"); transcriber.setWordsToExpect(wordsToListenFor) } }
+  /// A trial: ask the glasses for their two-channel sound.
+  @Published var stereoMicrophones: Bool { didSet { store.set(stereoMicrophones, forKey: "stereoMicrophones"); stereoChanged() } }
+  @Published var buttonsOnGlasses: Bool { didSet { store.set(buttonsOnGlasses, forKey: "buttonsOnGlasses"); buttonsChanged() } }
+  /// During a conversation the buttons stay out of the way, so the lens keeps the whole display;
+  /// a pinch brings them up as a short menu.
+  @Published var barOnPinch: Bool { didSet { store.set(barOnPinch, forKey: "barOnPinch"); buttonsChanged() } }
   @Published var whisper: Bool { didSet { store.set(whisper, forKey: "whisper"); if !whisper { whisperer.hush() } } }
   @Published var useCalendar: Bool { didSet { store.set(useCalendar, forKey: "useCalendar"); refreshDay() } }
   @Published var language: String { didSet { store.set(language, forKey: "language"); restartIfListening() } }
@@ -155,6 +170,8 @@ final class AppModel: ObservableObject {
   @Published var hearing = ""
   @Published var lastHeard = ""
   @Published var level: Float = 0
+  /// The last few seconds of sound as a row of bars, and how much it is being lifted.
+  @Published var levelTrace = ""
   @Published var audioFlowing = false
   /// Where speech is being turned into text for this listening session.
   @Published var speechNote = ""
@@ -186,7 +203,30 @@ final class AppModel: ObservableObject {
   private var lastSaidAt = Date.distantPast
   private var deafUntil = Date.distantPast
   private var lastBufferCount = 0
+  /// How many buffers the transcriber had taken in when this listening session began.
+  private var buffersAtStart = 0
+  private var lastSoundAt = Date.distantPast
   private var quietTicks = 0
+  /// The loudest sample of each quarter second, newest last, for the row of bars on screen.
+  private var levelHistory: [Float] = []
+  /// For the last minute, in quarter seconds: how much time passed and how much sound arrived.
+  /// The difference is sound that went missing on the way from the glasses.
+  private var clockHistory: [Double] = []
+  private var soundHistory: [Double] = []
+  private var lastTickAt = Date.distantPast
+  private var lastSecondsHeard: Double = 0
+  /// Quarter seconds this listening session has waited for a first sound from the glasses,
+  /// with Aside in front and nothing paused. However the stream fails, the wait has an end.
+  private var waitedForSound = 0
+  /// The same two sums since the last photo was asked for.
+  private var clockSinceLook: Double = 0
+  private var soundSinceLook: Double = 0
+  /// When the two-channel sound was last asked for, and how many buffers had arrived by then.
+  private var stereoAskedAt = Date.distantPast
+  private var buffersAtStereo = 0
+  /// When looking by itself may be tried again after the glasses sent no photos.
+  private var looksRetryAt: Date?
+  private var looksRetryWait: TimeInterval = 45
   private var practiceEvents: [CalendarEntry] = []
   private var pendingLinkAddress = ""
   private var pendingLinkCode = ""
@@ -197,6 +237,38 @@ final class AppModel: ObservableObject {
   /// Set when even the lightest picture was too slow: the glasses then get words.
   @Published var wordsBecauseSlow = false
   private var slowFrames = 0
+  /// How many photos from the glasses have been handed to the brain since the app started.
+  @Published var photosRead = 0
+  /// When a photo was last asked for and has not arrived yet.
+  private var lookAskedAt: Date?
+  /// When listening last started, and whether the wearer has been told that no sound is arriving.
+  private var listeningSince = Date.distantPast
+  private var saidNoSound = false
+  /// The camera stream would not start, so this session listens through the glasses' Bluetooth microphone.
+  private var onBluetoothInstead = false
+  /// When the glasses last closed Aside while it was standing by, and how often in a row.
+  private var lastClosedAt = Date.distantPast
+  private var quickClosures = 0
+  /// The session is being ended by Aside itself so that it can start afresh at once.
+  private var endedOnPurpose = false
+  /// The problem on screen says that the glasses left; it clears itself when they return.
+  private var problemIsAboutLeaving = false
+  /// How often the display has been brought back during this listening session.
+  private var displayReturns = 0
+  private var lastDisplayRescue = Date.distantPast
+  /// When a look was last started, by hand or by itself.
+  private var lastLookAsk = Date.distantPast
+  /// The photo on its way was not asked for: it is read quietly.
+  private var lookIsUnasked = false
+  /// Unasked looks that went wrong in a row, and whether they have been stopped for this session.
+  private var unaskedLookTroubles = 0
+  private var unaskedLooksPaused = false
+  /// An unasked look took the microphones down. It would do so again, so until the app is
+  /// opened afresh (or the setting is switched off and on) Aside only looks when asked.
+  private var looksBreakTheStream = false
+  private var lastUnaskedLookAt = Date.distantPast
+  /// The camera would not start on the session kept from before, and a fresh session was tried.
+  private var triedFreshSession = false
   /// When a model answer last had to come over mobile data because Wi-Fi had gone quiet.
   private var mobileDataAt = Date.distantPast
   private var quickFrames = 0
@@ -207,8 +279,14 @@ final class AppModel: ObservableObject {
   private var menuTurn = 0
   /// False while the wearer has paused the lens.
   private var lensListening = true
+  /// The ears the lens was last told about.
+  private var lensEars = "none"
   /// The lens alone, full screen and sideways, for a phone that is mirrored onto a big screen.
   @Published var showStage = false { didSet { if showStage != oldValue { turnScreen() } } }
+
+  /// For working on Aside with nobody at the phone: steps the app runs by itself after launch,
+  /// on the practice glasses, with the screen kept awake. Empty in the version that ships.
+  static let autopilot: [String] = []
 
   /// A short pitch, the kind Gist was made for. Played back as if someone were saying it.
   static let sampleSentences: [String] = [
@@ -236,6 +314,24 @@ final class AppModel: ObservableObject {
     plainOnGlasses = saved.bool(forKey: "plainOnGlasses")
     mobileDataBackup = saved.object(forKey: "mobileDataBackup") as? Bool ?? true
     cameraForLook = saved.bool(forKey: "cameraForLook")
+    // On today's glasses every photo stops the microphones for three or four seconds, so
+    // looking by itself is off unless it is switched on after that was known (14 Nov, evening).
+    if !saved.bool(forKey: "lookByItselfAsked2") {
+      saved.set(true, forKey: "lookByItselfAsked2")
+      saved.set(false, forKey: "lookByItself")
+    }
+    lookByItself = saved.bool(forKey: "lookByItself")
+    returnToGlasses = saved.object(forKey: "returnToGlasses") as? Bool ?? true
+    keepGlassesSession = saved.object(forKey: "keepGlassesSession") as? Bool ?? true
+    buttonsOnGlasses = saved.object(forKey: "buttonsOnGlasses") as? Bool ?? true
+    barOnPinch = saved.bool(forKey: "barOnPinch")
+    bluetoothWhenStreamFails = saved.object(forKey: "bluetoothWhenStreamFails") as? Bool ?? true
+    liftQuietVoices = saved.object(forKey: "liftQuietVoices") as? Bool ?? true
+    listenFor = saved.string(forKey: "listenFor") ?? ""
+    // Tried on Meta Ray-Ban Display on 14 Nov: asked for two channels, the glasses send no
+    // sound at all. The switch is gone from Settings; the code stays for a later SDK.
+    saved.set(false, forKey: "stereoMicrophones")
+    stereoMicrophones = false
     whisper = saved.bool(forKey: "whisper")
     useCalendar = saved.bool(forKey: "useCalendar")
     language = saved.string(forKey: "language") ?? "en-US"
@@ -257,7 +353,13 @@ final class AppModel: ObservableObject {
       .sink { [weak self] _ in self?.objectWillChange.send() }
       .store(in: &bag)
 
-    transcriber.onSegment = { [weak self] text in self?.heard(text) }
+    transcriber.onSegment = { [weak self] text, who, number in self?.heard(text, who: who, number: number) }
+    transcriber.onRelabel = { [weak self] labels in
+      // Keys go across as text: JSON has no numbered keys.
+      var named: [String: String] = [:]
+      for (number, who) in labels { named[String(number)] = who }
+      self?.lens.call("relabel", [named])
+    }
     transcriber.onPartial = { [weak self] text in self?.hearing = text }
     transcriber.onProblem = { [weak self] text in self?.problem = text }
 
@@ -269,22 +371,43 @@ final class AppModel: ObservableObject {
 
     glasses.onTranscript = { [weak self] text, isFinal in self?.glassesSaid(text, isFinal: isFinal) }
     glasses.onPhoto = { [weak self] data in self?.sawPhoto(data) }
+    glasses.onPhotoFailed = { [weak self] in self?.photoFailed() }
     glasses.onTap = { [weak self] in self?.openGlassesMenu() }
     glasses.onChoice = { [weak self] id in self?.chose(id) }
     // Glasses that come into reach get the lens on standby, so the first pinch can come from the band.
     glasses.$hasDevice
       .removeDuplicates()
       .sink { [weak self] inReach in
-        if inReach { self?.standOnGlasses(after: 0.8) }
+        guard let self, inReach else { return }
+        // They are back: the note about them leaving has done its job.
+        if self.problemIsAboutLeaving, !self.isListening {
+          self.problemIsAboutLeaving = false
+          self.problem = ""
+        }
+        self.standOnGlasses(after: 0.8)
       }
       .store(in: &bag)
     glasses.onDisplayReady = { [weak self] in self?.lens.call("redraw") }
     glasses.onFrameTiming = { [weak self] took in self?.frameTook(took) }
     glasses.onSessionEnded = { [weak self] in self?.glassesLeft() }
+    glasses.onDisplayLost = { [weak self] in self?.displayLost() }
+    glasses.onPaused = { [weak self] paused in self?.glassesPaused(paused) }
+    glasses.onTooWarm = { [weak self] shuttingDown in self?.glassesTooWarm(shuttingDown) }
+    glasses.onStereoRefused = { [weak self] in self?.stereoRefused() }
+    glasses.stereoSound = stereoMicrophones
+    transcriber.setLifting(liftQuietVoices)
+    transcriber.setWordsToExpect(wordsToListenFor)
+    if !AppModel.autopilot.isEmpty { traceGlasses() }
 
     lens.onReady = { [weak self] place in self?.lensCameUp(place) }
     lens.onState = { [weak self] body in self?.lensChanged(body) }
-    lens.onLook = { [weak self] in _ = self?.glasses.capturePhoto() }
+    lens.onLook = { [weak self] in
+      // Someone said "as you can see": the brain asks for a look of its own accord.
+      guard let self else { return }
+      self.lookIsUnasked = false
+      self.lastLookAsk = Date()
+      _ = self.glasses.capturePhoto()
+    }
     lens.onPlan = { [weak self] list in self?.planArrived(list) }
     lens.onMemory = { [weak self] list in self?.memoryArrived(list) }
     lens.onTrouble = { [weak self] text in self?.problem = text }
@@ -341,8 +464,101 @@ final class AppModel: ObservableObject {
 
   private func lensCameUp(_ place: String) {
     lensReady = true
-    lens.call("setHost", [["ears": isListening ? ears.lensName : "none"]])
+    tellLens(ears: isListening ? ears.lensName : "none")
     refreshDay()
+    if !autopilotBegan {
+      autopilotBegan = true
+      runAutopilot()
+    }
+  }
+
+  // MARK: - Autopilot (tests with nobody at the phone)
+
+  /// The step the autopilot is on, shown on screen so it can be read from a mirror of the phone.
+  @Published var autopilotNote = ""
+  /// What the glasses link did during the autopilot's run, newest last.
+  @Published var autopilotTrace: [String] = []
+  private let launchedAt = Date()
+  private var lastWarmAt = Date.distantPast
+  private var autopilotBegan = false
+
+  private func runAutopilot() {
+    let steps = AppModel.autopilot
+    // A test run that was cut short may have left the wearer's memory put aside: bring it back.
+    guard !steps.isEmpty else {
+      lens.call("unstash")
+      return
+    }
+    // The sample conversations of a test run must not push the wearer's own recaps out.
+    lens.call("stash")
+    Task { @MainActor [weak self] in
+      for step in steps {
+        guard let self else { return }
+        UIApplication.shared.isIdleTimerDisabled = true
+        self.autopilotNote = step
+        if !step.hasPrefix("wait") { self.trace("> \(step)") }
+        let parts = step.split(separator: ":").map(String.init)
+        let argument = parts.count > 1 ? parts[1] : ""
+        switch parts[0] {
+        // The camera stays out of it until a "camera" step: iOS asks for it with an alert.
+        case "practice": self.glasses.useMockGlasses(camera: false)
+        case "camera": self.glasses.practiceCamera()
+        case "wait": try? await Task.sleep(nanoseconds: UInt64((Double(argument) ?? 1) * 1_000_000_000))
+        case "sample": self.playSample()
+        case "listen": self.start()
+        case "stop": if self.isSampling { self.stopSample() } else { self.stop() }
+        case "feed":
+          for sentence in AppModel.sampleSentences.prefix(Int(argument) ?? AppModel.sampleSentences.count) {
+            let words = Double(sentence.split(separator: " ").count)
+            try? await Task.sleep(nanoseconds: UInt64(words / 165.0 * 60.0 * 1_000_000_000.0))
+            guard self.isListening else { break }
+            self.lastHeard = sentence
+            self.lens.call("heard", [sentence])
+          }
+        case "tap": self.glasses.practiceTap()
+        case "peek": self.barOnPinch = argument == "on"
+        case "click": self.autopilotNote = "click \(argument): \(self.glasses.practiceClick(argument))"
+        case "off": self.glasses.practicePower(false)
+        case "on": self.glasses.practicePower(true)
+        case "mobile": self.checkMobileData()
+        case "stage": self.showStage = true
+        case "unstage": self.showStage = false
+        case "slide":
+          if let file = Bundle.main.url(forResource: "practice-slide", withExtension: "jpg", subdirectory: "lens") {
+            self.glasses.practicePhoto(file)
+          } else {
+            self.autopilotNote = "slide: file missing"
+          }
+        case "warm": self.glasses.practiceThermal(.critical)
+        case "cool": self.glasses.practiceThermal(.none)
+        case "doff": self.glasses.practiceWorn(false)
+        case "don": self.glasses.practiceWorn(true)
+        case "look": self.look()
+        case "end": self.endConversation()
+        default: break
+        }
+      }
+      self?.autopilotNote = "done"
+      self?.lens.call("unstash")
+    }
+  }
+
+  /// Tells the lens which ears are in use, and whether the glasses carry the app's own buttons.
+  private func tellLens(ears name: String) {
+    lensEars = name
+    let buttons = buttonsOnGlasses && showOnGlasses
+    lens.call("setHost", [["ears": name, "buttons": buttons, "pinch": buttons && barOnPinch]])
+  }
+
+  /// A setting about the buttons on the glasses changed.
+  private func buttonsChanged() {
+    tellLens(ears: lensEars)
+    lens.call("redraw")
+  }
+
+  /// True when the buttons belong under the lens right now.
+  private var barShown: Bool {
+    buttonsOnGlasses && !(barOnPinch && isListening && phase == "live")
   }
 
   private func lensChanged(_ body: [String: Any]) {
@@ -375,6 +591,7 @@ final class AppModel: ObservableObject {
   /// Sends the current frame to the glasses' display, as a picture of the lens or as plain text.
   private func pushToGlasses() {
     guard showOnGlasses, glasses.hasSession, !menuOnGlasses else { return }
+    glasses.bar = barShown ? glassesBar() : []
     let words = plain
     // Behind another app or with the screen locked the lens is not drawn, so there is no picture to take.
     let lensIsDrawn = UIApplication.shared.applicationState != .background
@@ -401,11 +618,32 @@ final class AppModel: ObservableObject {
         // A newer frame is already on its way: this one is out of date.
         guard let self, mine == self.pushCount else { return }
         if let image {
-          self.glasses.show(frame: image)
+          // Buttons under the lens leave it a wide, shorter space on the display.
+          self.glasses.show(frame: self.glasses.bar.isEmpty ? image : AppModel.fitted(image))
         } else {
           self.glasses.show(title: words.title, sub: words.sub, body: words.body)
         }
       }
+    }
+  }
+
+  /// The share of the display's height left to the lens when buttons sit under it.
+  static let lensShareWithBar: CGFloat = 0.76
+
+  /// The square lens, drawn smaller in the middle of a canvas shaped like the space above the
+  /// buttons. Black is see-through on the glasses, so the margins do not show, and nothing is
+  /// cut off or stretched whichever way the display fits a picture into that space.
+  static func fitted(_ image: UIImage) -> UIImage {
+    let side = image.size.width
+    let canvas = CGSize(width: side, height: (side * lensShareWithBar).rounded())
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    format.opaque = true
+    return UIGraphicsImageRenderer(size: canvas, format: format).image { context in
+      UIColor.black.setFill()
+      context.fill(CGRect(origin: .zero, size: canvas))
+      let inner = canvas.height
+      image.draw(in: CGRect(x: ((canvas.width - inner) / 2).rounded(), y: 0, width: inner, height: inner))
     }
   }
 
@@ -458,6 +696,32 @@ final class AppModel: ObservableObject {
 
   // MARK: - On the glasses, by hand
 
+  /// The buttons under the lens on the glasses. They are real display buttons, so the band moves
+  /// between them and a pinch presses one: Aside can be run without touching the phone.
+  /// Only the main button carries an icon: the display draws any other button that has one as
+  /// the icon alone, with no label.
+  private func glassesBar() -> [GlassesLink.Choice] {
+    guard isListening || isSampling else {
+      return [
+        GlassesLink.Choice(id: "listen", label: "Listen", icon: .speechBubble, main: true),
+        GlassesLink.Choice(id: "brief", label: "Brief me", icon: nil),
+      ]
+    }
+    // Look needs the glasses' camera, which only runs with the camera stream.
+    let canLook = isListening && glasses.streamText != "off"
+    var bar: [GlassesLink.Choice] = []
+    if canLook {
+      bar.append(GlassesLink.Choice(id: "look", label: "Look", icon: .eye, main: true))
+    }
+    if phase == "live" {
+      bar.append(GlassesLink.Choice(id: "end", label: "End talk", icon: nil, main: !canLook))
+      bar.append(GlassesLink.Choice(id: "stop", label: "Stop", icon: nil))
+    } else {
+      bar.append(GlassesLink.Choice(id: "stop", label: "Stop", icon: nil, main: !canLook))
+    }
+    return bar
+  }
+
   /// A pinch of the band (or a tap on the touchpad) while the lens is up opens a short menu
   /// on the glasses themselves, so the phone can stay where it is.
   private func openGlassesMenu() {
@@ -467,18 +731,17 @@ final class AppModel: ObservableObject {
     let mine = menuTurn
     var choices: [GlassesLink.Choice] = []
     if isListening {
-      choices.append(GlassesLink.Choice(id: "look", label: "Look", icon: .eye, main: true))
-      choices.append(GlassesLink.Choice(id: "end", label: "End talk", icon: .checkmark))
-      if lensListening {
-        choices.append(GlassesLink.Choice(id: "pause", label: "Pause", icon: .speechBubbleOff))
-      } else {
-        choices.append(GlassesLink.Choice(id: "resume", label: "Resume", icon: .speechBubble))
+      let canLook = glasses.streamText != "off"
+      if canLook {
+        choices.append(GlassesLink.Choice(id: "look", label: "Look", icon: .eye, main: true))
       }
+      choices.append(GlassesLink.Choice(id: "end", label: "End talk", icon: nil, main: !canLook))
+      choices.append(GlassesLink.Choice(id: "stop", label: "Stop", icon: nil))
     } else {
       choices.append(GlassesLink.Choice(id: "listen", label: "Listen", icon: .speechBubble, main: true))
-      choices.append(GlassesLink.Choice(id: "brief", label: "Brief me", icon: .calendar))
+      choices.append(GlassesLink.Choice(id: "brief", label: "Brief me", icon: nil))
     }
-    choices.append(GlassesLink.Choice(id: "back", label: "Back", icon: .arrowULeft))
+    choices.append(GlassesLink.Choice(id: "back", label: "Back", icon: nil))
     glasses.showMenu(title: "Aside", note: statusLine, choices: choices)
     // A menu nobody answers goes away by itself, and the lens comes back.
     Task { @MainActor [weak self] in
@@ -501,17 +764,18 @@ final class AppModel: ObservableObject {
     case "pause": lens.call("setListening", [false])
     case "resume": lens.call("setListening", [true])
     case "listen": start()
+    case "stop": if isSampling { stopSample() } else { stop() }
     case "brief": briefNow()
     default: break
     }
   }
 
   /// With glasses in reach and nothing running, the lens still stands by on their display.
+  /// If the last session is still closing, the link opens the new one as soon as it has gone.
   private func standOnGlasses(after seconds: Double) {
     Task { @MainActor [weak self] in
       try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
-      guard let self, self.showOnGlasses, self.glasses.hasDevice, !self.glasses.hasSession,
-        !self.isListening, !self.isSampling
+      guard let self, self.showOnGlasses, self.glasses.hasDevice, !self.isListening, !self.isSampling
       else { return }
       self.glasses.start(camera: false, audio: false, speech: false, display: true)
     }
@@ -571,7 +835,11 @@ final class AppModel: ObservableObject {
     let sink = transcriber
     switch ears {
     case .glassesStream:
-      if glasses.usingMock {
+      if glasses.usingMock, !AppModel.autopilot.isEmpty {
+        // A test with nobody at the phone: no microphone is opened, the autopilot feeds the words.
+        microphoneName = "Autopilot, no microphone"
+        glasses.start(camera: true, audio: false, speech: false, display: showOnGlasses)
+      } else if glasses.usingMock {
         // Practice glasses have no microphones, so the phone's stands in for them.
         guard transcriber.start(language: language) else { return }
         do {
@@ -609,8 +877,32 @@ final class AppModel: ObservableObject {
       }
     }
 
+    // Only the glasses' own microphones, worn on the face, can tell voices apart by loudness.
+    transcriber.setWornMicrophones(ears == .glassesStream && !glasses.usingMock)
     isListening = true
-    lastBufferCount = 0
+    listeningSince = Date()
+    saidNoSound = false
+    onBluetoothInstead = false
+    endedOnPurpose = false
+    unaskedLookTroubles = 0
+    unaskedLooksPaused = false
+    triedFreshSession = false
+    displayReturns = 0
+    looksRetryAt = nil
+    looksRetryWait = 45
+    levelHistory = []
+    levelTrace = ""
+    clockHistory = []
+    soundHistory = []
+    lastTickAt = Date.distantPast
+    clockSinceLook = 0
+    soundSinceLook = 0
+    waitedForSound = 0
+    // The transcriber counts buffers from the day it was made, so this session counts from here.
+    buffersAtStart = transcriber.takeLevel().1
+    lastBufferCount = buffersAtStart
+    stereoAskedAt = Date()
+    buffersAtStereo = buffersAtStart
     quietTicks = 0
     audioFlowing = false
     if ears == .glassesSpeech {
@@ -620,7 +912,7 @@ final class AppModel: ObservableObject {
       speechNote = transcriber.onDevice ? "turned into text on this iPhone" : "turned into text by Apple’s dictation service"
     }
     lens.call("setListening", [true])
-    lens.call("setHost", [["ears": ears.lensName]])
+    tellLens(ears: ears.lensName)
     UIApplication.shared.isIdleTimerDisabled = true
   }
 
@@ -628,15 +920,18 @@ final class AppModel: ObservableObject {
     guard isListening else { return }
     transcriber.stop()          // hands over the last words while we are still listening
     isListening = false
+    onBluetoothInstead = false
     phoneAudio.stop()
     glasses.audioSink.setHandler(nil)
-    glasses.stop()
+    // The display stays up, so the recap and then the standby lens are there at once, and the
+    // next Listen needs no new session. (With the setting off, the session ends as it used to.)
+    if keepGlassesSession { glasses.standBy() } else { glasses.stop() }
     whisperer.hush()
     hearing = ""
     level = 0
     audioFlowing = false
     lens.call("end")
-    lens.call("setHost", [["ears": "none"]])
+    tellLens(ears: "none")
     UIApplication.shared.isIdleTimerDisabled = showStage
     standOnGlasses(after: 1.5)
     standOnGlasses(after: 4)
@@ -651,10 +946,11 @@ final class AppModel: ObservableObject {
     sampleRun += 1
     let run = sampleRun
     isSampling = true
+    displayReturns = 0
     problem = ""
     hearing = ""
     lens.call("setListening", [true])
-    lens.call("setHost", [["ears": "replay"]])
+    tellLens(ears: "replay")
     if showOnGlasses, glasses.hasDevice, !glasses.hasSession {
       glasses.start(camera: false, audio: false, speech: false, display: true)
     }
@@ -688,8 +984,8 @@ final class AppModel: ObservableObject {
   private func finishSample() {
     isSampling = false
     sampleRun += 1
-    glasses.stop()
-    lens.call("setHost", [["ears": "none"]])
+    if keepGlassesSession { glasses.standBy() } else { glasses.stop() }
+    tellLens(ears: "none")
     UIApplication.shared.isIdleTimerDisabled = showStage
     standOnGlasses(after: 1.5)
     standOnGlasses(after: 4)
@@ -701,20 +997,138 @@ final class AppModel: ObservableObject {
     start()
   }
 
-  private func glassesLeft() {
-    guard isListening, ears.needsGlassesSession else { return }
-    let reason = glasses.lastError
-    stop()
-    problem = reason.isEmpty
-      ? "The glasses ended the session. That happens when they are folded or another app takes over. Start again when ready."
-      : reason
+  /// The lens was switched on or off for the glasses.
+  private func showOnGlassesChanged() {
+    if isListening {
+      restartIfListening()
+    } else if isSampling {
+      return
+    } else if showOnGlasses {
+      standOnGlasses(after: 0.5)
+    } else {
+      // Nothing is running and the lens is not wanted there: the standby session ends.
+      glasses.stop()
+    }
   }
 
-  private func heard(_ text: String) {
+  private func glassesLeft() {
+    let onPurpose = endedOnPurpose
+    endedOnPurpose = false
+    // The ears do not ride on this session (the Bluetooth microphone, the phone, a sample):
+    // only the display did, so it is brought back and listening carries on.
+    if isSampling || (isListening && (onBluetoothInstead || !ears.needsGlassesSession)) {
+      guard displayReturns < 6 else { return }
+      displayReturns += 1
+      displayAgain(after: onPurpose ? 0.8 : 4)
+      return
+    }
+    if isListening {
+      let reason = glasses.lastError
+      // A session that ends right after an unasked photo: the photo is the likely cause.
+      if Date().timeIntervalSince(lastUnaskedLookAt) < 8 { looksBreakTheStream = true }
+      stop()
+      if !glasses.hasDevice {
+        problem = "The glasses went out of reach, were folded or switched off, so Aside stopped listening. Put them back on and press Listen."
+      } else if reason.isEmpty || reason == "Session ended by device" {
+        problem = "The glasses ended the session. That happens when they are folded or another glasses app takes over. Press Listen to start again."
+      } else {
+        problem = "The glasses ended the session (\(reason)). Press Listen to start again."
+      }
+      problemIsAboutLeaving = true
+      return
+    }
+    // Standing by, and something else took the display or the wearer closed Aside there. With
+    // Meta's toolkit only the phone can put it back, so it returns by itself after a moment.
+    // Closed three times in quick succession, it stays closed until asked for again.
+    guard returnToGlasses else { return }
+    if onPurpose {
+      standOnGlasses(after: 1)
+      return
+    }
+    let now = Date()
+    quickClosures = now.timeIntervalSince(lastClosedAt) < 40 ? quickClosures + 1 : 0
+    lastClosedAt = now
+    guard quickClosures < 3 else { return }
+    standOnGlasses(after: 8)
+  }
+
+  /// A tap on the glasses' touchpad pauses everything Aside does there: the display goes dark
+  /// and the microphones stop. Another tap carries on. The phone says which it is.
+  private func glassesPaused(_ paused: Bool) {
+    if paused {
+      problem = isListening
+        ? "Paused from the glasses: Aside hears nothing until you tap the side of the glasses. (They also pause by themselves if you put them on after pressing Listen.)"
+        : "Paused from the glasses. Tap the side of the glasses to bring the lens back."
+      // If only the stream paused, the display still shows this.
+      lens.call("tell", ["Paused: tap the glasses", 120000])
+    } else {
+      problem = ""
+      listeningSince = Date()
+      lens.call("tell", [isListening ? "Listening again" : "Back", 3000])
+    }
+  }
+
+  /// The glasses say they are too warm. Their camera is what heats them, so Aside lets it go
+  /// before the glasses cut the session themselves, and carries on listening through their
+  /// Bluetooth microphone, with the lens still on the display.
+  private func glassesTooWarm(_ shuttingDown: Bool) {
+    guard Date().timeIntervalSince(lastWarmAt) > 20 else { return }
+    lastWarmAt = Date()
+    looksBreakTheStream = true      // no more photos by itself while the glasses are this warm
+    guard isListening, ears == .glassesStream, !onBluetoothInstead else {
+      lens.call("tell", ["Glasses are too warm", 6000])
+      problem = "The glasses say they are too warm. Give them a minute folded, or keep sessions short."
+      return
+    }
+    saidNoSound = true
+    if bluetoothWhenStreamFails, !glasses.usingMock {
+      listenOverBluetoothInstead()
+      lens.call("tell", ["Glasses warm: camera off", 7000])
+      problem = "The glasses say they are too warm, so Aside switched their camera off and is listening through their Bluetooth microphone. Looking is off until you start again."
+    } else {
+      lens.call("tell", ["Glasses are too warm", 6000])
+      problem = "The glasses say they are too warm and may stop streaming. Fold them for a minute, or pick “Glasses Bluetooth mic” in Settings, which does not use the camera."
+    }
+  }
+
+  /// For the autopilot: every change on the glasses link goes into a short running log on screen.
+  private func traceGlasses() {
+    glasses.$sessionText.removeDuplicates().sink { [weak self] text in self?.trace("session \(text)") }.store(in: &bag)
+    glasses.$streamText.removeDuplicates().sink { [weak self] text in self?.trace("stream \(text)") }.store(in: &bag)
+    glasses.$displayText.removeDuplicates().sink { [weak self] text in self?.trace("display \(text)") }.store(in: &bag)
+    glasses.$lastError.removeDuplicates().sink { [weak self] text in if !text.isEmpty { self?.trace("error \(text)") } }.store(in: &bag)
+    glasses.$hasDevice.removeDuplicates().sink { [weak self] there in self?.trace(there ? "glasses in reach" : "glasses gone") }.store(in: &bag)
+    $problem.removeDuplicates().sink { [weak self] text in if !text.isEmpty { self?.trace("problem \(text.prefix(60))") } }.store(in: &bag)
+  }
+
+  private func trace(_ text: String) {
+    let seconds = Int(Date().timeIntervalSince(launchedAt))
+    autopilotTrace.append(String(format: "%3d %@", seconds, text))
+    if autopilotTrace.count > 16 { autopilotTrace.removeFirst(autopilotTrace.count - 16) }
+  }
+
+  /// Frames keep failing though the display says it is on, and starting the display again did
+  /// not help: its channel to the glasses has gone.
+  private func displayLost() {
+    guard Date().timeIntervalSince(lastDisplayRescue) > 30 else { return }
+    lastDisplayRescue = Date()
+    if isListening, ears.needsGlassesSession, !onBluetoothInstead {
+      // The same session carries the microphones, and hearing comes first: it is left alone.
+      problem = "The glasses’ display stopped answering. Aside is still listening. Press Stop, then Listen, to bring the display back."
+      return
+    }
+    // Nothing else rides on this session, so it starts afresh; glassesLeft() puts the lens back.
+    endedOnPurpose = true
+    glasses.stop()
+  }
+
+  /// `who` is "me" when the words were the wearer's own, "them" when someone else's, and
+  /// empty when the sound could not tell (see Transcriber.takeWho).
+  private func heard(_ text: String, who: String = "", number: Int = 0) {
     guard isListening, Date() >= deafUntil else { return }
-    lastHeard = text
+    lastHeard = who == "me" ? "You: \(text)" : who == "them" ? "Them: \(text)" : text
     hearing = ""
-    lens.call("heard", [text])
+    lens.call("heard", [text, who, number])
   }
 
   private func glassesSaid(_ text: String, isFinal: Bool) {
@@ -726,17 +1140,209 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Sound from the glasses should arrive as fast as the clock runs. It comes in bursts, so
+  /// one quiet quarter second means nothing; but over a minute, the seconds of sound that
+  /// arrived should match the seconds that passed. What is missing was lost on the way (the
+  /// link was busy, or the glasses stopped their microphones for a photo), and words said then
+  /// never reached the phone. Kept for the last minute, so the screen can say so, and since
+  /// the last photo, so a photo that costs sound is noticed.
+  private func countHoles() {
+    let heard = transcriber.secondsHeard()
+    let now = Date()
+    let passed = now.timeIntervalSince(lastTickAt)
+    let arrived = heard - lastSecondsHeard
+    lastTickAt = now
+    lastSecondsHeard = heard
+    let expected = ears == .glassesStream && !glasses.usingMock && !onBluetoothInstead
+      && glasses.streamText == "streaming" && !glasses.isPaused && lastBufferCount != buffersAtStart
+    // The first tick after a break has no sensible "time passed".
+    guard expected, passed > 0, passed < 1.5 else { return }
+    clockHistory.append(passed)
+    soundHistory.append(arrived)
+    if clockHistory.count > 240 {
+      clockHistory.removeFirst(clockHistory.count - 240)
+      soundHistory.removeFirst(soundHistory.count - 240)
+    }
+    clockSinceLook += passed
+    soundSinceLook += arrived
+  }
+
+  /// Seconds of sound that went missing during the last minute (or since listening began).
+  private var holeSeconds: Double {
+    max(0, clockHistory.reduce(0, +) - soundHistory.reduce(0, +))
+  }
+
+  /// A row of bars for the last eight seconds of sound, as it arrived (before any lifting), so
+  /// the wearer can see whether the other person's voice reaches the glasses at all. Each bar
+  /// is a quarter of a second; a step up is twice as loud.
+  private func drawLevelTrace(_ peak: Float) {
+    levelHistory.append(peak)
+    if levelHistory.count > 32 { levelHistory.removeFirst(levelHistory.count - 32) }
+    let bars: [Character] = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"]
+    var row = ""
+    for value in levelHistory {
+      // -54 dB and below is the lowest bar, -12 dB and above the highest: 6 dB a step.
+      let decibels = 20 * log10(max(value, 0.000_01))
+      let step = Int(((decibels + 54) / 6).rounded(.down))
+      row.append(bars[min(7, max(0, step))])
+    }
+    let now = Int((20 * log10(max(peak, 0.000_01))).rounded())
+    let lift = transcriber.liftNow()
+    var text = "\(row)  \(max(now, -99)) dB"
+    if liftQuietVoices, abs(lift - 1) > 0.15 {
+      text += lift >= 1 ? String(format: "  lifted ×%.0f", lift) : "  held down"
+    }
+    // Under a second is the bursts the sound arrives in, not a loss.
+    let holes = holeSeconds
+    if holes >= 1, clockHistory.count >= 40 { text += String(format: "  lost %.0f s/min", holes) }
+    if text != levelTrace { levelTrace = text }
+  }
+
+  /// The names and words typed in Settings, as a list.
+  private var wordsToListenFor: [String] {
+    listenFor
+      .split(whereSeparator: { $0 == "," || $0 == "\n" || $0 == ";" })
+      .map { $0.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.isEmpty }
+  }
+
+  /// The two-channel sound was switched on or off.
+  private func stereoChanged() {
+    glasses.stereoSound = stereoMicrophones
+    stereoAskedAt = Date()
+    buffersAtStereo = lastBufferCount
+    guard isListening, ears == .glassesStream, !glasses.usingMock, !onBluetoothInstead else { return }
+    glasses.soundFeedChanged()
+  }
+
+  /// The glasses said no to two channels outright; the stream has already started in mono.
+  private func stereoRefused() {
+    guard stereoMicrophones else { return }
+    stereoMicrophones = false
+    lens.call("tell", ["Stereo sound not available", 5000])
+    problem = "These glasses would not give a two-channel sound feed, so Aside is using the usual one."
+  }
+
   private func readMeter() {
+    if !AppModel.autopilot.isEmpty { UIApplication.shared.isIdleTimerDisabled = true }
+    lookIfDue()
     let (peak, count) = transcriber.takeLevel()
     if abs(level - peak) > 0.004 { level = peak }
-    guard isListening, ears != .glassesSpeech else { return }
+    guard isListening, ears != .glassesSpeech else {
+      if !levelTrace.isEmpty { levelTrace = "" }
+      return
+    }
+    countHoles()
+    drawLevelTrace(peak)
+    // The two-channel sound was asked for and nothing has arrived since: the glasses do not
+    // offer it this way, so go back to the one-channel sound that is known to work.
+    if stereoMicrophones, ears == .glassesStream, !glasses.usingMock, !onBluetoothInstead,
+      count == buffersAtStereo, glasses.streamText != "asking", !glasses.isPaused,
+      glasses.streamText != "waiting for the glasses",
+      Date().timeIntervalSince(stereoAskedAt) > 7
+    {
+      stereoMicrophones = false
+      listeningSince = Date()
+      lens.call("tell", ["Stereo sound not available", 5000])
+      problem = "The glasses sent no sound on their two-channel feed, so Aside went back to the usual one."
+    }
+    // Listening through the glasses' camera stream, and either nothing has arrived twelve seconds
+    // in, or the stream went down mid-conversation and three tries did not bring it back. While
+    // Meta AI is asking for a permission the wait is the wearer's, so that does not count.
+    // Waiting on the wearer (a permission in Meta AI, or a pause from the touchpad) is not a fault.
+    if glasses.streamText == "asking" || glasses.isPaused { listeningSince = Date() }
+    // Each new try at the stream starts the twelve seconds again, so there is also a limit on
+    // the whole wait for a first sound: twenty-five seconds with Aside in front. (When Meta AI
+    // really asks for a permission it takes Aside out of the front; that wait is the wearer's.)
+    if ears == .glassesStream, !glasses.usingMock, !onBluetoothInstead, lastBufferCount == buffersAtStart,
+      !glasses.isPaused, UIApplication.shared.applicationState == .active
+    {
+      waitedForSound += 1
+    }
+    let waitedTooLong = waitedForSound > 100
+    if ears == .glassesStream, !glasses.usingMock, !audioFlowing, !saidNoSound, !onBluetoothInstead,
+      glasses.streamText != "asking" || waitedTooLong, !glasses.isPaused
+    {
+      // A camera that will not start on a session kept from before gets, once, a fresh session
+      // to start on, and the wait begins again.
+      // (Not while the stream is only waiting for the glasses to be put on: a new session
+      // would wait just the same.)
+      if keepGlassesSession, glasses.sessionReused, !triedFreshSession, lastBufferCount == buffersAtStart,
+        glasses.streamText != "waiting for the glasses",
+        Date().timeIntervalSince(listeningSince) > 7
+      {
+        triedFreshSession = true
+        listeningSince = Date()
+        glasses.startAfresh()
+      }
+      let neverCame = lastBufferCount == buffersAtStart
+        && (Date().timeIntervalSince(listeningSince) > 12 || waitedTooLong)
+      let wentAway = lastBufferCount != buffersAtStart && glasses.streamGaveUp
+        && Date().timeIntervalSince(lastSoundAt) > 6
+      if neverCame || wentAway {
+        saidNoSound = true
+        if bluetoothWhenStreamFails {
+          listenOverBluetoothInstead()
+        } else {
+          problem = "The glasses’ microphones are not running (camera stream: \(glasses.streamText)). Put them on if they are off your face. After a long session they can be too warm to stream: fold them for a minute, or pick “Glasses Bluetooth mic” in Settings, which does not use the camera."
+        }
+      }
+    }
     if count != lastBufferCount {
       lastBufferCount = count
+      lastSoundAt = Date()
       quietTicks = 0
       if !audioFlowing { audioFlowing = true }
+      if saidNoSound, !onBluetoothInstead { saidNoSound = false; problem = "" }
     } else {
       quietTicks += 1
       if quietTicks > 12, audioFlowing { audioFlowing = false }
+    }
+  }
+
+  /// The glasses would not start their camera stream, which is what carries their microphones.
+  /// Their Bluetooth microphone needs no camera, so listening carries on through that. It is
+  /// still the glasses that listen, never the phone.
+  private func listenOverBluetoothInstead() {
+    let stuck = glasses.lastError.isEmpty ? glasses.streamText : "\(glasses.streamText): \(glasses.lastError)"
+    let sink = transcriber
+    do {
+      let name = try phoneAudio.start(.glassesBluetooth) { buffer in sink.append(buffer) }
+      onBluetoothInstead = true
+      transcriber.setWornMicrophones(false)   // the headset feed evens voices out by itself
+      glasses.audioSink.setHandler(nil)
+      microphoneName = name
+      tellLens(ears: "hfp")
+      lens.call("tell", ["Bluetooth microphone now", 7000])
+      // The camera that is not streaming is let go, and the session stays, so the lens never
+      // leaves the display. (With "Stay connected" off, the session ends and the display comes
+      // back once it has gone: one started while the old one is still closing loses its channel.)
+      // The timed tries below do nothing while a session is up.
+      if keepGlassesSession {
+        glasses.releaseCamera()
+      } else if glasses.hasSession {
+        endedOnPurpose = true
+        glasses.stop()
+      }
+      displayAgain(after: 1.5)
+      displayAgain(after: 4)
+      displayAgain(after: 8)
+      problem = "The glasses’ camera stream is not running (\(stuck)), so Aside is listening through their Bluetooth microphone instead. Looking is off until you start again. If it happens every time, switch the glasses off and on."
+    } catch {
+      problem = "The glasses have not started their microphones (camera stream: \(stuck)), and their Bluetooth microphone is not there either. Put them on, or fold them for a minute if they have been streaming for a long time, then start again."
+    }
+  }
+
+  /// Puts the lens back on the glasses while listening carries on without their session.
+  private func displayAgain(after seconds: Double) {
+    Task { @MainActor [weak self] in
+      try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+      guard let self, self.showOnGlasses, self.glasses.hasDevice else { return }
+      guard self.isSampling || (self.isListening && (self.onBluetoothInstead || !self.ears.needsGlassesSession))
+      else { return }
+      // With the Bluetooth microphone or the phone as the chosen ears, the camera may be kept for Look.
+      let camera = self.isListening && !self.onBluetoothInstead && self.cameraForLook
+      self.glasses.start(camera: camera, audio: false, speech: false, display: true)
     }
   }
 
@@ -748,12 +1354,125 @@ final class AppModel: ObservableObject {
       problem = "Start listening first, then look."
       return
     }
-    if !glasses.capturePhoto() {
+    lookIsUnasked = false
+    lastLookAsk = Date()
+    if glasses.capturePhoto() {
+      photoIsComing(tellIfLost: true)
+      return
+    }
+    // No camera stream. Either none was asked for, or it has not come up yet.
+    let state = glasses.streamText
+    if state == "off" {
       problem = "Looking needs the glasses’ camera. Use “Glasses microphones” as the ears, or turn on “Keep the camera ready” in Settings."
+      return
+    }
+    lens.call("lookSoon")
+    // A stream that stopped for good (the glasses were off the face) gets a new camera now.
+    glasses.reviveCamera()
+    Task { @MainActor [weak self] in
+      // The camera only runs while the glasses are worn, and takes a few seconds to start.
+      for _ in 0..<16 {
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        guard let self, self.isListening else { return }
+        if self.glasses.capturePhoto() {
+          self.photoIsComing(tellIfLost: true)
+          return
+        }
+      }
+      guard let self else { return }
+      self.problem = self.ears == .glassesStream && !self.onBluetoothInstead
+        ? "The glasses’ camera is not running (\(self.glasses.streamText)). Put the glasses on and wait for “sound arriving”, then look again."
+        : "The glasses’ camera is not running (\(self.glasses.streamText)). Put the glasses on, then look again."
     }
   }
 
+  /// While a conversation is going, takes a look every few seconds without being asked.
+  /// The brain reads it quietly and only speaks up when there is something new to read.
+  private func lookIfDue() {
+    // Photos that stopped coming (the glasses were taken off, or handed over) are tried again
+    // after a while, waiting longer each time.
+    if unaskedLooksPaused, !looksBreakTheStream, let again = looksRetryAt, Date() > again {
+      looksRetryAt = nil
+      unaskedLooksPaused = false
+      unaskedLookTroubles = 1
+      if problem.hasPrefix("Looking by itself is paused") { problem = "" }
+    }
+    guard lookByItself, !unaskedLooksPaused, !looksBreakTheStream, isListening, phase == "live" else { return }
+    guard lookAskedAt == nil, Date().timeIntervalSince(lastLookAsk) > 10 else { return }
+    lastLookAsk = Date()
+    guard glasses.capturePhoto() else { return }
+    lookIsUnasked = true
+    lastUnaskedLookAt = Date()
+    clockSinceLook = 0
+    soundSinceLook = 0
+    photoIsComing(tellIfLost: false)
+    // Hearing matters more than seeing. The same stream carries the microphones, so if taking a
+    // photo makes it stop even for a moment, or if no photo comes back twice in a row, the
+    // unasked looks stop for the rest of this session.
+    let photosBefore = photosRead
+    let dropsBefore = glasses.streamDrops
+    Task { @MainActor [weak self] in
+      // A photo is given six seconds to arrive (see photoIsComing) before it counts as lost.
+      try? await Task.sleep(nanoseconds: 6_500_000_000)
+      guard let self, self.isListening, !self.onBluetoothInstead else { return }
+      // A photo that stops the microphones for a second or more is not worth it: on some
+      // glasses software every photo does. One is enough to know.
+      let costSound = self.ears == .glassesStream && self.clockSinceLook - self.soundSinceLook >= 1.5
+      let streamFell = self.glasses.streamDrops != dropsBefore || self.glasses.streamText != "streaming"
+        || costSound
+      let nothingCame = self.photosRead == photosBefore
+      if streamFell || nothingCame {
+        self.unaskedLookTroubles += 1
+        if streamFell || self.unaskedLookTroubles >= 2 {
+          self.unaskedLooksPaused = true
+          if streamFell {
+            self.looksBreakTheStream = true
+          } else {
+            self.looksRetryAt = Date().addingTimeInterval(self.looksRetryWait)
+            self.looksRetryWait = min(self.looksRetryWait * 2, 240)
+          }
+          // Said once on the lens; a later retry that fails again stays quiet there.
+          if streamFell || self.looksRetryWait <= 90 { self.lens.call("tell", ["Looking by itself paused", 6000]) }
+          self.problem = streamFell
+            ? "Looking by itself is paused: each photo was interrupting the glasses’ microphones. Look still works when you press it."
+            : "Looking by itself is paused: the glasses are not sending photos (they do that off the face). Aside tries again in a little while; Look still works when you press it."
+        }
+      } else {
+        self.unaskedLookTroubles = 0
+        self.looksRetryWait = 45
+      }
+    }
+  }
+
+  /// A photo has been asked for. If none arrives, a look by hand says so; one taken unasked is just dropped.
+  private func photoIsComing(tellIfLost: Bool) {
+    if tellIfLost { lens.call("lookSoon") }
+    let asked = Date()
+    lookAskedAt = asked
+    Task { @MainActor [weak self] in
+      try? await Task.sleep(nanoseconds: 6_000_000_000)
+      guard let self, self.lookAskedAt == asked else { return }
+      self.lookAskedAt = nil
+      if tellIfLost {
+        self.problem = "The glasses did not send a photo. Try Look once more."
+        self.lens.call("tell", ["No photo came back", 4000])
+      }
+    }
+  }
+
+  /// The glasses said straight away that the photo could not be taken.
+  private func photoFailed() {
+    guard lookAskedAt != nil else { return }
+    lookAskedAt = nil
+    if !lookIsUnasked {
+      problem = "The glasses could not take that photo. Try Look once more."
+      lens.call("tell", ["No photo came back", 4000])
+    }
+    lookIsUnasked = false
+  }
+
   private func sawPhoto(_ data: Data) {
+    lookAskedAt = nil
     guard let image = UIImage(data: data) else { return }
     let longest = max(image.size.width, image.size.height)
     var small = image
@@ -767,7 +1486,9 @@ final class AppModel: ObservableObject {
       }
     }
     guard let jpeg = small.jpegData(compressionQuality: 0.6) else { return }
-    lens.call("look", [jpeg.base64EncodedString()])
+    lens.call("look", [jpeg.base64EncodedString(), lookIsUnasked])
+    lookIsUnasked = false
+    photosRead += 1
   }
 
   // MARK: - Speaking (for glasses with no display)
@@ -972,6 +1693,7 @@ final class AppModel: ObservableObject {
 
   var statusLine: String {
     if isStarting { return "Starting" }
+    if glasses.isPaused, isListening || isSampling { return "Paused on the glasses" }
     if !isListening, !isSampling { return lensReady ? "Not listening" : "Loading the lens" }
     switch view {
     case "turn": return "Your turn"
@@ -987,8 +1709,9 @@ final class AppModel: ObservableObject {
     guard isListening else { return "" }
     if ears == .glassesStream, glasses.usingMock { return "Practice glasses: the iPhone’s microphone stands in" }
     if ears == .glassesSpeech { return "Glasses speech: \(glasses.speechText)" }
-    let flow = audioFlowing ? "sound arriving" : "no sound yet"
-    return speechNote.isEmpty ? "\(microphoneName): \(flow)" : "\(microphoneName): \(flow), \(speechNote)"
+    let flow = audioFlowing ? "sound arriving" : (lastBufferCount != buffersAtStart ? "no sound right now" : "no sound yet")
+    let looks = photosRead == 0 ? "" : photosRead == 1 ? ". Looked once" : ". Looked \(photosRead) times"
+    return (speechNote.isEmpty ? "\(microphoneName): \(flow)" : "\(microphoneName): \(flow), \(speechNote)") + looks
   }
 
   var mainButtonTitle: String {
@@ -1011,7 +1734,9 @@ final class AppModel: ObservableObject {
   var glassesDetail: String {
     guard glasses.hasSession else { return "" }
     var parts = ["session \(glasses.sessionText)"]
-    if glasses.streamText != "off" { parts.append("camera stream \(glasses.streamText)") }
+    if glasses.streamText != "off" {
+      parts.append(photosRead > 0 ? "camera stream \(glasses.streamText), \(photosRead) photos read" : "camera stream \(glasses.streamText)")
+    }
     if glasses.speechText != "off" { parts.append("speech \(glasses.speechText)") }
     if glasses.displayText != "off" {
       var line = "display \(glasses.displayText), \(glasses.framesSent) frames"

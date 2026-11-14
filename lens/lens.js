@@ -52,6 +52,47 @@
   var lastSceneSig = '';
   var knownNodes = {};
 
+  // Does the straight line from a to b run through the box (grown by pad)?
+  function lineHitsBox(ax, ay, bx, by, box, pad) {
+    var x0 = box.cx - box.w / 2 - pad, x1 = box.cx + box.w / 2 + pad, y0 = box.cy - box.h / 2 - pad, y1 = box.cy + box.h / 2 + pad;
+    var t0 = 0, t1 = 1, dx = bx - ax, dy = by - ay;
+    var p = [-dx, dx, -dy, dy], q = [ax - x0, x1 - ax, ay - y0, y1 - ay];
+    for (var i = 0; i < 4; i++) {
+      if (p[i] === 0) { if (q[i] < 0) return false; continue; }
+      var r = q[i] / p[i];
+      if (p[i] < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else { if (r < t0) return false; if (r < t1) t1 = r; }
+    }
+    return true;
+  }
+
+  // How many wires would run through a box that is at neither of their ends. Box sizes are guessed from the labels.
+  function tangles(nodes, edges, pos) {
+    var boxes = {};
+    nodes.forEach(function (nd) {
+      var p = pos[nd.id], maxW = Math.max(110, p.maxW), need = 34 + 12 * String(nd.label).length;
+      boxes[nd.id] = { cx: p.cx, cy: p.cy, w: Math.min(maxW, need), h: 22 + 26 * Math.min(3, Math.ceil(need / maxW)) };
+    });
+    var count = 0;
+    edges.forEach(function (e) {
+      var a = boxes[e.from], b = boxes[e.to];
+      if (!a || !b) return;
+      nodes.forEach(function (nd) {
+        if (nd.id !== e.from && nd.id !== e.to && lineHitsBox(a.cx, a.cy, b.cx, b.cy, boxes[nd.id], 4)) count++;
+      });
+    });
+    return count;
+  }
+
+  // Three or four boxes toward the corners of the stage, in the order given: across, down, back.
+  // No wire between two of them can pass through a third.
+  function cornerLayout(order, W, H) {
+    var spots = order.length === 3 ? [[0.22, 0.24], [0.78, 0.24], [0.5, 0.78]] : [[0.25, 0.25], [0.75, 0.25], [0.75, 0.75], [0.25, 0.75]];
+    var pos = {};
+    order.forEach(function (nd, i) { var at = spots[i % spots.length]; pos[nd.id] = { cx: W * at[0], cy: H * at[1], maxW: W / 2 - 40 }; });
+    return pos;
+  }
+
   // Left-to-right layers by longest path. With no edges the nodes simply sit side by side.
   function layerLayout(nodes, edges, W, H) {
     var layer = {}, n = nodes.length;
@@ -65,19 +106,17 @@
     if (!edges.length) nodes.forEach(function (nd, i) { layer[nd.id] = i; });
     var used = Array.from(new Set(nodes.map(function (nd) { return layer[nd.id]; }))).sort(function (a, b) { return a - b; });
     var pos = {};
-    if (used.length >= 4) {
-      // A chain of four would be four cramped columns. Fold it into two rows: across, down, back.
-      var order = nodes.slice().sort(function (a, b) { return layer[a.id] - layer[b.id]; });
-      var spots = [[0.25, 0.25], [0.75, 0.25], [0.75, 0.75], [0.25, 0.75]];
-      order.forEach(function (nd, i) { pos[nd.id] = { cx: W * spots[i][0], cy: H * spots[i][1], maxW: W / 2 - 40 }; });
-      return pos;
-    }
+    var order = nodes.slice().sort(function (a, b) { return layer[a.id] - layer[b.id]; });
+    // A chain of four would be four cramped columns. Fold it into two rows: across, down, back.
+    if (used.length >= 4) return cornerLayout(order.slice(0, 4), W, H);
     used.forEach(function (L, ci) {
       var col = nodes.filter(function (nd) { return layer[nd.id] === L; });
       col.forEach(function (nd, ri) {
         pos[nd.id] = { cx: W * (ci + 0.5) / used.length, cy: H * (ri + 1) / (col.length + 1), maxW: Math.min(230, W / used.length - 30) };
       });
     });
+    // A wire that skips a column can run straight through the box in between. The corners never have that.
+    if ((n === 3 || n === 4) && tangles(nodes, edges, pos) > 0) return cornerLayout(order, W, H);
     return pos;
   }
 
@@ -247,7 +286,11 @@
   function drawStandby(s) {
     var box = el('div', 'sheet standby');
     box.appendChild(el('div', 'time', hhmm(new Date())));
-    box.appendChild(el('p', 'lead', s.listening ? 'Ready. I’ll follow when someone starts explaining.' : 'Paused. Nothing is being heard.'));
+    // Inside the iPhone app this frame goes to the glasses, where a pinch of the band opens the menu.
+    var earsOff = HOSTED && s.host && s.host.ears === 'none';
+    box.appendChild(el('p', 'lead', earsOff ? 'Not listening yet.' : s.listening ? 'Ready. I’ll follow when someone starts explaining.' : 'Paused. Nothing is being heard.'));
+    // With the app's buttons under the lens on the glasses there is nothing to explain.
+    if (HOSTED && !(s.host && s.host.buttons)) box.appendChild(el('p', 'hint', earsOff ? 'Pinch, then choose Listen' : 'Pinch for the menu'));
     if (s.next) {
       var p = el('p', 'next');
       p.appendChild(el('b', '', s.next.at));
@@ -304,7 +347,9 @@
 
     $('stateText').textContent = offline ? 'Reconnecting' : !s.listening ? 'Paused' :
       view === 'live' ? 'Listening' : view === 'turn' ? 'Your turn' : view === 'recap' ? 'Conversation ended' : view === 'brief' ? 'Your day' : 'Standing by';
-    $('ears').textContent = s.host && EARS[s.host.ears] ? EARS[s.host.ears] : '';
+    // With the buttons tucked away during a conversation, the strip says how to get them.
+    var pinchHint = HOSTED && s.host && s.host.pinch && s.phase === 'live';
+    $('ears').textContent = pinchHint ? 'Pinch for controls' : (s.host && EARS[s.host.ears] ? EARS[s.host.ears] : '');
     $('pause').textContent = s.listening ? 'Pause' : 'Resume';
     tickClock();
 
@@ -329,11 +374,17 @@
         }
       }
       $('ask').classList.toggle('empty', !s.ask);
+      // With the wearer doing the explaining, the question is the one to expect from the listener.
+      var askTag = $('ask').querySelector('.tag');
+      if (askTag) setText(askTag, s.ask && s.askFor === 'me' ? 'Expect' : 'Ask');
       var a = $('askText');
       if (setText(a, s.ask || 'A question to ask will appear here')) { if (s.ask) fit(a, [[28, 34], [25, 30], [22, 27]], 68); else { a.style.fontSize = ''; a.style.lineHeight = ''; } }
     } else if (view === 'turn') {
       var q = $('asked');
       if (setText(q, s.turn.asked)) fit(q, [[34, 40], [30, 36], [26, 32]], 120);
+      // Asked about their own subject, the wearer sees what they already said about it.
+      var rt = $('repliesTag');
+      if (rt) setText(rt, !s.turn.replies.length ? '' : s.turn.kind === 'recall' ? 'You already said' : 'You could say');
       var ol = $('replies');
       var sig = s.turn.replies.join('|');
       if (ol.dataset.sig !== sig) {
@@ -417,8 +468,11 @@
     });
     try { core.loadMemory(JSON.parse(localStorage.getItem('gist.memory') || '[]')); } catch (e) { /* nothing saved yet */ }
     window.GistNative = {
-      heard: function (text) { core.heard(text); },
-      look: function (jpegBase64) { core.look(jpegBase64); },
+      heard: function (text, who, number) { core.heard(text, who, number); },
+      relabel: function (labels) { core.relabel(labels); },
+      look: function (jpegBase64, quiet) { core.look(jpegBase64, !!quiet); },
+      lookSoon: function () { core.lookSoon(); },
+      tell: function (text, ms) { core.tell(text, ms); },
       setListening: function (on) { core.setListening(on); },
       end: function () { core.end(); },
       setDay: function (events) { core.setDay(events); },
@@ -429,6 +483,21 @@
       planDay: function () { core.planDay(function (list) { post({ type: 'plan', events: list }); }); },
       state: function () { return core.state(); },
       redraw: function () { lastFrameSig = ''; render(core.state()); },
+      // For test runs: the memory is put aside first and brought back afterwards, so sample
+      // conversations never push the wearer's own recaps out.
+      stash: function () {
+        try { if (localStorage.getItem('gist.memory.stash') === null) localStorage.setItem('gist.memory.stash', JSON.stringify(core.memory())); } catch (e) { /* storage can be unavailable */ }
+      },
+      unstash: function () {
+        try {
+          var kept = localStorage.getItem('gist.memory.stash');
+          if (kept === null) return;
+          core.loadMemory(JSON.parse(kept));
+          localStorage.setItem('gist.memory', JSON.stringify(core.memory()));
+          localStorage.removeItem('gist.memory.stash');
+          post({ type: 'memory', items: core.memory() });
+        } catch (e) { /* storage can be unavailable */ }
+      },
     };
     setInterval(function () {
       core.tick();
@@ -463,7 +532,7 @@
     }
     window.GistNative = {
       heard: function (text) { quiet(api('chunk', { text: text })); },
-      look: function (jpegBase64) { quiet(api('look', { image: jpegBase64 })); },
+      look: function (jpegBase64, unasked) { quiet(api('look', { image: jpegBase64, quiet: !!unasked })); },
       setListening: function (on) { quiet(api('listening', { listening: !!on })); },
       end: function () { quiet(api('end')); },
       setDay: function (events) { quiet(api('day', { events: events })); },
@@ -645,6 +714,9 @@
       scene: { kind: 'map', title: 'The chain', nodes: [{ id: 'a', label: 'Organizers' }, { id: 'b', label: 'Marketplace' }, { id: 'c', label: 'Courier' }, { id: 'd', label: 'Student teams' }], edges: [{ from: 'a', to: 'b', label: 'lists' }, { from: 'b', to: 'c', label: 'books' }, { from: 'c', to: 'd', label: 'delivers' }] } }),
     loop: sample({ headline: 'More events should feed a growth loop', term: { word: 'flywheel', means: 'growth that feeds itself' }, ask: 'Why would more students make organizers list faster?', thinking: true,
       scene: { kind: 'loop', title: 'Growth loop', nodes: [{ id: 'e', label: 'More events' }, { id: 'f', label: 'More boards' }, { id: 'g', label: 'More students' }, { id: 'h', label: 'Faster listings' }] } }),
+    mapskip: sample({ headline: 'Take rate is ten percent per swap', term: { word: 'take rate', means: 'fee taken per sale' }, ask: 'Who checks the hardware works before resale?',
+      scene: { kind: 'map', title: 'Leftover hardware marketplace', nodes: [{ id: 'o', label: 'Organizers' }, { id: 'n', label: 'No inventory' }, { id: 's', label: 'Student teams' }, { id: 'm', label: 'Marketplace' }],
+        edges: [{ from: 'o', to: 'm', label: 'supply' }, { from: 'n', to: 'm', label: 'holds' }, { from: 'o', to: 's', label: '' }, { from: 's', to: 'm', label: '' }] } }),
     steps: sample({ headline: 'Launch at Junction, then organizers, then campuses', ask: 'What has to be true before step two?',
       scene: { kind: 'steps', title: 'Rollout', steps: ['Launch at Junction', 'Sign five organizers', 'Open to every campus'], current: 1 } }),
     compare: sample({ headline: 'Ship each box, or pick up later', term: { word: 'margin', means: 'what is left after costs' }, ask: 'Would a student wait weeks for a sensor?',

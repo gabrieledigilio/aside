@@ -38,6 +38,8 @@ final class LensHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
   var onRoute: ((Int) -> Void)?
   /// When Wi-Fi goes quiet, the same request may also be tried over mobile data.
   var allowMobileData = true
+  /// When mobile data last answered before Wi-Fi did.
+  private var mobileDataWonAt = Date.distantPast
 
   /// The Meta Model API key, when it is kept on this phone.
   var apiKey = ""
@@ -271,6 +273,7 @@ final class LensHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
           self.network.invalidateAndCancel()
           self.network = LensHost.freshSession()
         }
+        if route == 2 { self.mobileDataWonAt = Date() }
         self.onRoute?(route)
         var status = (response as? HTTPURLResponse)?.statusCode ?? 0
         var text = String(data: data, encoding: .utf8) ?? ""
@@ -333,10 +336,13 @@ final class LensHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
   ///   after 1.5 s of silence, the same request over mobile data, because a crowded Wi-Fi
   ///   network is the usual reason for the silence;
   ///   after 3 s, a brand-new connection on whatever network the phone prefers.
+  /// While Wi-Fi keeps losing that race, mobile data sets off almost at once instead: for a
+  /// minute and a half after each time it answered first, it starts a quarter of a second in.
   /// The answer says which one brought it: 0 the usual connection, 1 the new one, 2 mobile data.
   private func fetch(_ request: URLRequest) async throws -> (Data, URLResponse, Int) {
     let usual = network
     let overMobileData = allowMobileData ? MobileDataCall(request) : nil
+    let headStart: UInt64 = Date().timeIntervalSince(mobileDataWonAt) < 90 ? 250_000_000 : 1_500_000_000
     return try await withThrowingTaskGroup(of: (Data, URLResponse, Int).self) { group in
       group.addTask {
         let (data, response) = try await usual.data(for: request)
@@ -344,7 +350,7 @@ final class LensHost: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
       }
       if let overMobileData {
         group.addTask {
-          try await Task.sleep(nanoseconds: 1_500_000_000)
+          try await Task.sleep(nanoseconds: headStart)
           let (status, data) = try await overMobileData.run()
           // Only a clean answer counts from this route; anything else is left to the other two.
           guard status == 200, let url = request.url,

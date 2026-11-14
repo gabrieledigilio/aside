@@ -188,6 +188,7 @@ ol, ul { list-style: none; }
 .sheet.standby .time { font: 500 64px/64px var(--hud); letter-spacing: -.01em; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
 .sheet.standby .lead { font: 500 24px/31px var(--text); color: rgba(243, 251, 255, .8); margin-bottom: 14px; }
 .sheet.standby .next { font: 400 22px/28px var(--text); color: rgba(243, 251, 255, .8); border-top: 2px solid var(--accent-low); padding-top: 10px; }
+.sheet.standby .hint { font: 500 20px/26px var(--hud); color: var(--accent-mid); margin-top: 4px; }
 .sheet.standby .next b { font: 600 22px/28px var(--hud); color: var(--accent); margin-right: 10px; }
 .sheet.standby .next i { font: 500 22px/28px var(--hud); font-style: normal; color: var(--accent-mid); }
 .sheet.standby .next span { display: block; }

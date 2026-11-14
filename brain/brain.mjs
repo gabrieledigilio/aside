@@ -210,7 +210,7 @@ function serve({ mock }) {
       if (p === '/brief') { return json(res, 200, { ok: core.briefNow() }); }
       if (p === '/plan') { return json(res, 200, { events: await core.planDay() }); }
       if (p === '/host') { core.setHost(body); return json(res, 200, { ok: true }); }
-      if (p === '/look') { const seen = await core.look(body.image); return json(res, 200, { seen }); }
+      if (p === '/look') { const seen = await core.look(body.image, !!body.quiet); return json(res, 200, { seen }); }
       if (p === '/model') {                             // lets the in-page brain (?native in a desktop browser) reach the model through this Mac
         try { return json(res, 200, await (isMock() ? sendMock(body) : sendReal(body))); }
         catch (err) { return json(res, 200, { status: 0, text: String(err.message || err) }); }

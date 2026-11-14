@@ -86,6 +86,43 @@ struct PracticeDisplay: UIViewRepresentable {
 
 // MARK: - Small pieces
 
+/// What the practice glasses show, and what the app is doing, while the autopilot runs. Only
+/// there in a test build; it lets a mirror of the phone stand in for somebody watching it.
+struct AutopilotView: View {
+  @EnvironmentObject private var model: AppModel
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      if model.glasses.usingMock, model.glasses.hasSession {
+        PracticeDisplay(make: { model.glasses.mockPreviewView() })
+          .aspectRatio(1, contentMode: .fit)
+          .frame(maxHeight: 250)
+          .frame(maxWidth: .infinity)
+          .background(Color.black)
+          .overlay(Rectangle().stroke(Theme.amber, lineWidth: 1))
+      }
+      Group {
+        Text("autopilot: \(model.autopilotNote) · \(model.statusLine)")
+        Text(model.sourceLine.isEmpty ? "ears: off" : model.sourceLine)
+        Text("\(model.glassesLine) · \(model.glassesDetail)")
+        if !model.modelNote.isEmpty || !model.modelError.isEmpty {
+          Text("\(model.modelNote) \(model.modelError)")
+        }
+        if !model.problem.isEmpty { Text("problem: \(model.problem)") }
+        if !model.glasses.lastError.isEmpty { Text("glasses: \(model.glasses.lastError)") }
+        if !model.mobileDataCheck.isEmpty { Text(model.mobileDataCheck) }
+      }
+      .font(.system(size: 11, design: .monospaced))
+      .foregroundStyle(Theme.ink)
+      .lineLimit(3)
+      Text(model.autopilotTrace.joined(separator: "\n"))
+        .font(.system(size: 9, design: .monospaced))
+        .foregroundStyle(Theme.amber)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+}
+
 // MARK: - The stage
 
 /// The lens alone, as large as the screen allows, with what was just heard beside it.
@@ -245,10 +282,13 @@ struct ContentView: View {
         LensMirror(webView: model.lens.webView, active: !model.showStage)
           .aspectRatio(1, contentMode: .fit)
           .overlay(Rectangle().stroke(Theme.line, lineWidth: 1))
-          .frame(maxHeight: 380)
+          .frame(maxHeight: AppModel.autopilot.isEmpty ? 380 : 130)
           .frame(maxWidth: .infinity)
           .accessibilityElement(children: .ignore)
           .accessibilityLabel(model.spokenLens.isEmpty ? "The Aside lens" : model.spokenLens)
+        if !AppModel.autopilot.isEmpty {
+          AutopilotView()
+        }
       }
       .padding(.horizontal, 16)
       .padding(.bottom, 12)
@@ -342,6 +382,14 @@ struct ControlsView: View {
       }
       if model.isListening {
         LevelBar(level: model.level)
+        if !model.levelTrace.isEmpty {
+          Text(model.levelTrace)
+            .font(.system(size: 11, design: .monospaced))
+            .foregroundStyle(Theme.dim)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .accessibilityHidden(true)
+        }
       }
       if model.isListening || model.isSampling {
         if !model.sourceLine.isEmpty {

@@ -33,8 +33,13 @@ enum Permissions {
 }
 
 final class Transcriber: @unchecked Sendable {
-  /// A finished piece of speech. Called on the main thread.
-  var onSegment: ((String) -> Void)?
+  /// A finished piece of speech, whose voice it was ("me" for the wearer, "them", or "" when
+  /// that cannot be told yet), and the piece's number. Called on the main thread.
+  var onSegment: ((String, String, Int) -> Void)?
+  /// Earlier pieces that could not be told apart when they were heard, now that both voices
+  /// have been: piece number to "me" or "them". Called on the main thread, before `onSegment`
+  /// for the piece that settled it.
+  var onRelabel: (([Int: String]) -> Void)?
   /// The words being heard right now; they may still change. Called on the main thread.
   var onPartial: ((String) -> Void)?
   /// Something the wearer should know about. Called on the main thread.
@@ -47,6 +52,28 @@ final class Transcriber: @unchecked Sendable {
   private var muted = false
   private var peak: Float = 0
   private var bufferCount = 0
+  private var lifting = true
+  private var liftShown: Float = 1
+  private var secondsIn: Double = 0
+  private var wordsToExpect: [String] = []
+
+  // The leveller's own state, guarded by `levelLock` (audio can arrive on more than one thread
+  // for a moment when the microphone is switched).
+  private let levelLock = NSLock()
+  private var envelope: Float = 0.02
+  private var floorLevel: Float = 0.003
+  private var gain: Float = 1
+  // Whose voice. For the speech since the last finished piece: how many hundredths of a second
+  // fell in each 2 dB step of loudness, from -70 dB up. And for this listening session: how loud
+  // the loudest and the quietest pieces so far were (the wearer's voice and the other person's).
+  private var pieceLevels = [Int](repeating: 0, count: 36)
+  private var pieceBlocks = 0
+  private var loudVoice: Float?
+  private var quietVoice: Float?
+  private var tellingVoicesApart = false
+  private var pieceNumber = 0
+  /// Pieces heard before both voices had been: their number and how loud they were.
+  private var unmarked: [(number: Int, level: Float)] = []
 
   // Main thread only.
   private var recognizer: SFSpeechRecognizer?
@@ -106,7 +133,15 @@ final class Transcriber: @unchecked Sendable {
     request = nil
     converter = nil
     peak = 0
+    liftShown = 1
     lock.unlock()
+    levelLock.lock()
+    envelope = 0.02
+    floorLevel = 0.003
+    gain = 1
+    pieceLevels = [Int](repeating: 0, count: 36)
+    pieceBlocks = 0
+    levelLock.unlock()
     previous?.endAudio()
     task?.cancel()
     task = nil
@@ -122,7 +157,104 @@ final class Transcriber: @unchecked Sendable {
     lock.unlock()
   }
 
-  /// The loudest sample since the last call (0...1) and how many buffers have arrived so far.
+  /// Names and unusual words the recogniser should expect (a company, a product, a person).
+  /// Without this a name it has never met comes out as the nearest ordinary word.
+  func setWordsToExpect(_ words: [String]) {
+    lock.lock()
+    wordsToExpect = Array(words.prefix(100))
+    lock.unlock()
+  }
+
+  /// Whether the sound comes from microphones worn on the face (the glasses' own). Only then
+  /// does loudness say whose voice it is. Each listening session starts from nothing: how loud
+  /// the glasses' feed is can differ by ten decibels from one session to the next.
+  func setWornMicrophones(_ value: Bool) {
+    levelLock.lock()
+    tellingVoicesApart = value
+    pieceLevels = [Int](repeating: 0, count: 36)
+    pieceBlocks = 0
+    loudVoice = nil
+    quietVoice = nil
+    unmarked = []
+    levelLock.unlock()
+  }
+
+  /// Whose voice the speech since the last call was: "me" (the wearer), "them", or "" when the
+  /// sound cannot tell.
+  ///
+  /// The glasses' microphones are a hand's width from the wearer's mouth, so the wearer arrives
+  /// fifteen to twenty decibels louder than anyone across a table (measured on Ray-Ban Display:
+  /// peaks near -8 dB against -25 to -35 in one session, -19 against -35 to -44 in the next).
+  /// The gap holds; the absolute level does not. So nothing is assumed about how loud the
+  /// wearer is. Once this session has heard both a loud voice and one at least twelve decibels
+  /// quieter, the line between "me" and "them" is drawn halfway between the two. A piece with a
+  /// good share of its speech above the line is the wearer's; one with next to none is someone
+  /// else's; in between (two people in one piece) it is left open.
+  ///
+  /// Before both voices have been heard, only a voice too loud to be anyone else is marked.
+  /// Marking the other person as the wearer is the mistake that matters (their question would
+  /// stop counting as put to the wearer), so when in doubt nothing is marked.
+  private func takeWho() -> (who: String, number: Int, earlier: [Int: String]) {
+    levelLock.lock()
+    defer { levelLock.unlock() }
+    pieceNumber += 1
+    let number = pieceNumber
+    let levels = pieceLevels
+    let blocks = pieceBlocks
+    pieceLevels = [Int](repeating: 0, count: 36)
+    pieceBlocks = 0
+    guard tellingVoicesApart, blocks >= 15 else { return ("", number, [:]) }
+
+    // How loud the piece was: the level only its loudest tenth went above.
+    var above = 0
+    var step = 35
+    while step > 0 {
+      above += levels[step]
+      if above * 10 >= blocks { break }
+      step -= 1
+    }
+    let piece = Float(step) * 2 - 69      // the middle of that step, in dB
+
+    // The loudest and the quietest voices so far drift slowly towards the newest piece, so one
+    // odd piece does not set them for good.
+    let loud = max(piece, (loudVoice ?? piece) - 0.1)
+    let quiet = min(piece, (quietVoice ?? piece) + 0.1)
+    loudVoice = loud
+    quietVoice = quiet
+
+    // Both voices heard, and the loud one loud enough to be at the frame itself.
+    if loud >= -30, loud - quiet >= 12 {
+      let line = (loud + quiet) / 2
+      // Pieces from before the line could be drawn are settled now, by how loud they were.
+      var earlier: [Int: String] = [:]
+      for old in unmarked {
+        if old.level > line + 3 { earlier[old.number] = "me" } else if old.level < line - 3 { earlier[old.number] = "them" }
+      }
+      unmarked = []
+      var over = 0
+      for index in 0..<36 where Float(index) * 2 - 69 > line { over += levels[index] }
+      let share = Double(over) / Double(blocks)
+      if share >= 0.25 { return ("me", number, earlier) }
+      if share <= 0.04 { return ("them", number, earlier) }
+      return ("", number, earlier)
+    }
+    // Only one voice so far. Louder than anyone across a table gets: the wearer.
+    if piece >= -22 { return ("me", number, [:]) }
+    unmarked.append((number, piece))
+    if unmarked.count > 40 { unmarked.removeFirst(unmarked.count - 40) }
+    return ("", number, [:])
+  }
+
+  /// Whether quiet voices are lifted (and the wearer's own voice held down) before recognition.
+  func setLifting(_ value: Bool) {
+    lock.lock()
+    lifting = value
+    if !value { liftShown = 1 }
+    lock.unlock()
+  }
+
+  /// The loudest sample since the last call (0...1), as it arrived, before any lifting, and how
+  /// many buffers have arrived so far.
   func takeLevel() -> (Float, Int) {
     lock.lock()
     let level = peak
@@ -130,6 +262,23 @@ final class Transcriber: @unchecked Sendable {
     peak = 0
     lock.unlock()
     return (level, count)
+  }
+
+  /// How many seconds of sound have arrived since this transcriber was made. Set against the
+  /// clock, it says whether any sound is going missing on the way from the glasses.
+  func secondsHeard() -> Double {
+    lock.lock()
+    let value = secondsIn
+    lock.unlock()
+    return value
+  }
+
+  /// How much the sound is being lifted right now (1 means not at all).
+  func liftNow() -> Float {
+    lock.lock()
+    let value = liftShown
+    lock.unlock()
+    return value
   }
 
   // MARK: - Recognition (main thread)
@@ -141,6 +290,10 @@ final class Transcriber: @unchecked Sendable {
     request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
     request.addsPunctuation = true
     request.taskHint = .dictation
+    lock.lock()
+    let expected = wordsToExpect
+    lock.unlock()
+    if !expected.isEmpty { request.contextualStrings = expected }
 
     generation += 1
     let mine = generation
@@ -220,7 +373,9 @@ final class Transcriber: @unchecked Sendable {
     guard count > 0 else { return }
     let text = pending.prefix(count).joined(separator: " ")
     sentWords += count
-    onSegment?(text)
+    let voice = takeWho()
+    if !voice.earlier.isEmpty { onRelabel?(voice.earlier) }
+    onSegment?(text, voice.who, voice.number)
   }
 
   // MARK: - Audio in (any thread)
@@ -231,22 +386,26 @@ final class Transcriber: @unchecked Sendable {
     lock.lock()
     let request = self.request
     let isMuted = muted
+    let lift = lifting
     var converter = self.converter
     let sameFormat = buffer.format == target
     if request != nil, !sameFormat {
       if converter == nil || converter?.inputFormat != buffer.format {
         converter = AVAudioConverter(from: buffer.format, to: target)
+        // Two or more microphones are mixed into one, not cut down to the first.
+        if buffer.format.channelCount > 1 { converter?.downmix = true }
         self.converter = converter
       }
     }
     bufferCount += 1
+    if buffer.format.sampleRate > 0 { secondsIn += Double(buffer.frameLength) / buffer.format.sampleRate }
     lock.unlock()
 
     guard let request, !isMuted else { return }
 
     if sameFormat {
       measure(buffer)
-      request.append(buffer)
+      request.append(levelled(buffer, lift: lift))
       return
     }
     guard let converter else { return }
@@ -269,7 +428,102 @@ final class Transcriber: @unchecked Sendable {
     }
     guard conversionError == nil, converted.frameLength > 0 else { return }
     measure(converted)
-    request.append(converted)
+    request.append(levelled(converted, lift: lift))
+  }
+
+  /// Evens out loudness before the words are recognised. The glasses' microphones sit next to
+  /// the wearer's mouth, so the wearer arrives many times louder than the person across the
+  /// table, and a recogniser follows the loud voice. This lifts quiet speech towards a normal
+  /// level (up to twenty-four times) and holds a loud voice down, ten milliseconds at a time.
+  ///
+  /// It never lifts the room's own hum above a low ceiling, so a silent stretch stays quiet
+  /// instead of turning into noise the recogniser would try to read.
+  ///
+  /// Returns a new buffer: the one that came in is left as it was (the glasses' SDK asks for that).
+  /// With `lift` off the sound is only listened to (for whose voice it is) and handed back unchanged.
+  private func levelled(_ buffer: AVAudioPCMBuffer, lift: Bool) -> AVAudioPCMBuffer {
+    guard let source = buffer.floatChannelData else { return buffer }
+    let out = lift ? AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength) : nil
+    let count = Int(buffer.frameLength)
+    out?.frameLength = buffer.frameLength
+    let input = source[0]
+    let output = out?.floatChannelData?[0]
+
+    let wantedLevel: Float = 0.1      // where speech should sit (about -20 dB)
+    let humCeiling: Float = 0.022     // the room's hum is never lifted above this (about -33 dB)
+    let mostLift: Float = 24          // +28 dB
+    let leastLift: Float = 0.5        // a very loud voice is turned down by at most half
+
+    levelLock.lock()
+    var start = 0
+    while start < count {
+      let end = min(count, start + 160)
+      let length = Float(end - start)
+      var sum: Float = 0
+      var index = start
+      while index < end {
+        let value = input[index]
+        sum += value * value
+        index += 1
+      }
+      let loudness = (sum / length).squareRoot()
+
+      // The room's hum: follows the quietest moments down quickly, and creeps up slowly.
+      if loudness < floorLevel {
+        floorLevel += (loudness - floorLevel) * 0.3
+      } else {
+        floorLevel = min(loudness, floorLevel * 1.0017)
+      }
+      if floorLevel < 0.00003 { floorLevel = 0.00003 }
+
+      // The voice: jumps up at once, and falls back within a quarter of a second. It has to be
+      // that quick: when the wearer stops and the other person answers straight away, a slower
+      // lift leaves their first words far too quiet (a full second, on the first version).
+      if loudness > envelope {
+        envelope = loudness
+      } else {
+        envelope += (loudness - envelope) * 0.12
+      }
+
+      // Whose voice: anything clearly above the room's hum counts as speech, and is filed
+      // under how loud it was.
+      if tellingVoicesApart, loudness > max(floorLevel * 3, 0.002) {
+        let decibels = 20 * log10f(loudness)
+        pieceLevels[min(35, max(0, Int((decibels + 70) / 2)))] += 1
+        pieceBlocks += 1
+      }
+
+      var wanted = wantedLevel / max(envelope, 0.00003)
+      wanted = min(wanted, mostLift, max(1, humCeiling / floorLevel))
+      wanted = max(wanted, leastLift)
+      // Down at once (a loud voice must not clip), up quickly but not in one step.
+      let next = wanted < gain ? wanted : gain + (wanted - gain) * 0.3
+
+      if let output {
+        index = start
+        while index < end {
+          let position = Float(index - start) / length
+          var value = input[index] * (gain + (next - gain) * position)
+          // Anything still too loud is rounded off, not cut.
+          if value > 0.7 {
+            value = 0.7 + 0.3 * tanhf((value - 0.7) / 0.3)
+          } else if value < -0.7 {
+            value = -0.7 - 0.3 * tanhf((-value - 0.7) / 0.3)
+          }
+          output[index] = value
+          index += 1
+        }
+      }
+      gain = next
+      start = end
+    }
+    let shown = lift ? gain : 1
+    levelLock.unlock()
+
+    lock.lock()
+    liftShown = shown
+    lock.unlock()
+    return out ?? buffer
   }
 
   private func measure(_ buffer: AVAudioPCMBuffer) {

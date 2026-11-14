@@ -10,7 +10,7 @@
 (function (root) {
   'use strict';
 
-  var VERSION = '2.2';
+  var VERSION = '2.4';
 
   // ---------- small helpers ----------
   function words(s, n) {
@@ -62,12 +62,14 @@
   var RECAP_SCHEMA = obj({ title: str, points: strList, actions: strList, open: str });
   var BRIEF_SCHEMA = obj({ prep: strList });
   var LOOK_SCHEMA = obj({ note: str, facts: strList });
-  var TURN_SCHEMA = obj({ replies: strList });
+  var TURN_SCHEMA = obj({ about: { type: 'string', enum: ['wearer', 'other', 'unknown'] }, replies: strList });
 
   // ---------- prompts ----------
   // What every lane is told about its input. The glasses hear the whole room, the wearer included.
   var HEARD = 'The transcript is speech-to-text from the glasses\' microphones, often in a loud room, one line per stretch of speech. ' +
-    'It holds everyone\'s words, the wearer\'s own included, with no speaker labels (a new line often means someone else started talking). ' +
+    'It holds everyone\'s words, the wearer\'s own included. A line that begins "WEARER:" was said by the person wearing the glasses, and "OTHER:" by someone else ' +
+    '(the glasses can tell: the wearer\'s voice is far louder at their microphones). A line with no label could be either (a new line often means someone else started talking). ' +
+    'The labels are not part of what was said: never repeat them. ' +
     'Words can be wrong or missing, and stray fragments from people nearby slip in.';
 
   var FAST_SYSTEM = [
@@ -80,14 +82,17 @@
     '  "same": yes. The NEWEST WORDS carry nothing of substance (small talk and politeness such as "no rush", "no worries", "thanks", "sounds good"; agreement and filler; jokes; side chatter about food, breaks or the room; repeated or unfinished sentences; mis-heard words; fragments that fit nothing), or they only repeat or illustrate the point. Most short lines are "same".',
     '  "sharper": mostly. It is the same subject, but it moved forward: a new claim, problem, fix, step, number, decision or objection that the gist should now carry.',
     '  "new": no. The talk is now about something else, even something related (from one technique to another, from one problem to the next). One clear sentence about the new thing is enough.',
+    '  A lone word or a short fragment is never a new subject. Speech-to-text writes words that sound alike ("gender" where "tender" was said, "bored" for "board"), so a word that does not belong in this conversation is a mishearing: read it as the word that would fit, or ignore it. The move is then "same" or "sharper", never "new".',
     '- gist: the point on the table right now: the idea, claim, plan, problem or decision being worked out, the way you would whisper it to a friend who just walked up. Max 8 words. Sentence case, no final period.',
     '  When move is "same", copy the PREVIOUS GIST word for word. When there is no PREVIOUS GIST and nothing but greetings, filler or fragments has been said, return "same" with an empty gist.',
     '  Otherwise write the point as it stands now: ONE point, the latest one of substance, never two joined by a comma or "and". Use the rest of the transcript to make it clear on its own (name the thing it is about), and keep earlier wording only where it still fits.',
     '  Say the point itself as a statement with a verb ("Rent is rising faster than wages"), not an -ing phrase ("Introducing rent", "Discussing wages"). Never say that people are talking or about to ("They discuss an idea", "Speaker explains the plan", "Rent is about to be explained"), never name who is speaking, and never echo small talk.',
-    '  When a new subject has only been named and nothing has been said about it yet, the gist is its name alone ("Rent control", "How to bake bread"). Do not invent a claim about it.',
+    '  When a sentence has introduced a new subject ("let us talk about rent control", "so, how do you bake bread?") and nothing has been said about it yet, the gist is its name alone ("Rent control", "How to bake bread"). Do not invent a claim about it.',
+    '  A question is never turned into a claim, and you never answer it yourself. When the newest words only ask something about the point already on the lens, the move is "same". When they ask about something else, the gist names what is being asked ("What happens when the Wi-Fi drops", "How tests are split across machines").',
+    '  The lens must not state as true what is only someone\'s view on a matter people fight over. When the point is an accusation against a person or a group, or a claim about politics, religion, nations, groups of people or a disputed public fact, start the gist with "Claim:" ("Claim: remote work makes people lazy"). That is all it is for. Advice, taste, preferences, how-to and plans ("sear it three minutes", "it depends on your budget", "we should launch in spring"), and plain facts about the matter in hand, never get it.',
     '- term_word / term_means: only when the newest words contain jargon or an acronym a newcomer would not know. term_word is the term exactly as said; term_means is its plain meaning in max 5 short words. Otherwise both are empty strings. Never invent a term that was not said.',
-    '- asked: only when the newest words END with a question or request that someone puts TO the wearer ("what do you think?", "does that make sense?", "can you take that?"). Restate it in max 8 words. Otherwise empty. It must be about the matter being discussed: small talk and logistics ("got a minute?", "how are you?", "are you getting food?") do not count. Nor does it count when the person answers it themself, or when it is the wearer\'s own question: the wearer is the one being explained to, so a question that asks for an explanation ("how does that work?", "what do you mean?") is usually theirs, and so is anything close to the QUESTION THE LENS SUGGESTED.',
-    '- replies: when asked is set, 2 or 3 things the wearer could say back, each max 7 words, concrete and grounded in what was actually said: a doubt worth raising, a missing fact to request, or a clear position. Otherwise an empty list.',
+    '- asked: only when the newest words END with a question or request that someone puts TO the wearer ("what do you think?", "does that make sense?", "can you take that?"). Restate it in max 8 words. Otherwise empty. It must be about the matter being discussed: small talk and logistics ("got a minute?", "how are you?", "are you getting food?") do not count. Nor does it count when the person answers it themself, or when it is the wearer\'s own question: the wearer is the one being explained to, so a question that asks for an explanation ("how does that work?", "what do you mean?") is usually theirs, and so is anything close to the QUESTION THE LENS SUGGESTED. A question on a line labelled WEARER is always the wearer\'s own: asked stays empty. A question on a line labelled OTHER that is put to the wearer counts, whatever it asks.',
+    '- replies: when asked is set, 2 or 3 things the wearer could say back, each max 7 words, concrete and grounded in what was actually said: a doubt worth raising, a missing fact to request, or a clear position. When WHO IS EXPLAINING says the wearer, the question is about the wearer\'s own subject, which only the wearer knows: the replies are then reminders of things the wearer already said that answer it, in the wearer\'s words, and an empty list when the wearer said nothing that bears on it. Never invent a fact about the wearer\'s subject. When asked is empty, an empty list.',
     '- look: true only when the newest words point at something visible ("this slide", "as you can see", "look at this chart", "on the whiteboard", "this number here").',
     '',
     'Write in the language being spoken.',
@@ -117,9 +122,10 @@
     '',
     'title: max 3 words naming what the visual shows.',
     'point: the idea the visual shows as one plain line, max 8 words, sentence case, no final period: what you would whisper to a friend who just walked up. Say the idea itself, never that people are talking.',
-    'question: the one question the wearer should ask next, phrased as they would say it out loud, max 11 words. Aim at the weakest spot: an unstated assumption, a number that does not add up, a missing step, a vague word. Never ask something that was already answered, or that anyone in the transcript already asked or raised themself: if the PREVIOUS QUESTION now appears in the transcript, the wearer asked it, so move to the next weakest spot. With "new", write a fresh question about the new visual. With "grow", keep the PREVIOUS QUESTION word for word while it still aims at the weakest spot of what is on the table.',
+    'question: the one question the wearer should ask next, phrased as they would say it out loud, max 11 words. Aim at the weakest spot: an unstated assumption, a number that does not add up, a missing step, a vague word. Never ask something that was already answered, or that anyone in the transcript already asked or raised themself: if the PREVIOUS QUESTION now appears in the transcript, the wearer asked it, so move to the next weakest spot. With "new", write a fresh question about the new visual. With "grow", keep the PREVIOUS QUESTION word for word while it still aims at the weakest spot of what is on the table. When WHO IS EXPLAINING says the wearer, the wearer is the one presenting and the other person is listening: the question is then the one a sharp listener is most likely to ask the wearer next, phrased as that listener would say it, so the wearer can have an answer ready. It aims at the same weakest spot. A PREVIOUS QUESTION marked as the other kind no longer fits: write a new one.',
     '',
     'Rules:',
+    '- Speech-to-text writes words that sound alike ("gender" where "tender" was said). A word that does not belong in this conversation is a mishearing: read it as the word that would fit, or leave it out. Never build a visual, a title or a question around one odd word.',
     '- The visual shows what the conversation is about right now: judge that from the NEWEST WORDS in the light of the whole transcript, and build it from everything of substance said about that. It is not a picture of the last sentence, and small talk never appears in it.',
     '- THE HEADLINE ON THE LENS is what the wearer reads above your visual, so the two must be about the same thing. If the headline is about something the PREVIOUS VISUAL does not show, the visual is behind: "keep" is wrong, use "grow" to work it in or "new" to draw it. The headline can also be a little behind: when the NEWEST WORDS have clearly moved to something else, even something related, draw the new thing with "new".',
     '- Pick the scene from the SHAPE of the idea: figures being quoted -> "stats"; a cycle that feeds itself -> "loop"; two options being weighed -> "compare"; a plan or sequence -> "steps"; things acting on each other -> "map". When the shape has changed since the PREVIOUS VISUAL, switch scenes, even if the previous one was good.',
@@ -135,9 +141,10 @@
     'Write what the wearer should walk away with. Reply with ONLY a JSON object:',
     '{"title": "", "points": [], "actions": [], "open": ""}',
     '- title: max 4 words naming the conversation.',
-    '- points: max 3, each max 8 words: what was actually concluded or claimed, each a full plain statement that makes sense on its own. Leave out small talk and anything that reads like a stray fragment.',
+    '- points: max 3, each max 8 words: what was actually concluded or claimed, each a full plain statement that makes sense on its own. Leave out small talk and anything that reads like a stray fragment. An accusation against a person or a group, or a claim about politics, religion, nations, groups of people or a disputed public fact, is written as someone\'s claim ("Claim: ..."), never as a fact. Advice, taste, how-to and plans are never marked that way.',
     '- actions: max 3, each max 8 words, starting with a verb: things the wearer agreed to do or needs to follow up. Empty list if none.',
     '- open: the most important question that was raised and never answered, max 10 words. Check the transcript first: if an answer was given anywhere, even a rough one, it is not open. When nothing was left open, "".',
+    'The recap is read by the wearer: never call them "the wearer" and never use the labels as names. Where a point is about them, say "you" ("You will send the timing data"); otherwise say the thing itself.',
     'Only use what was said. Write in the language that was spoken.',
   ].join('\n');
 
@@ -149,13 +156,16 @@
   ].join('\n');
 
   var TURN_SYSTEM = [
-    'You are Aside, a comprehension aid in smart glasses. Someone has been explaining something to the wearer and has just asked them a question. The wearer needs something good to say within seconds.',
+    'You are Aside, a comprehension aid in smart glasses. The wearer is in a conversation and has just been asked a question. The wearer needs something good to say within seconds.',
     HEARD,
-    'Reply with ONLY a JSON object: {"replies": []}',
-    '- replies: exactly 3 things the wearer could say back, each max 8 words, in this order:',
+    'Reply with ONLY a JSON object: {"about": "", "replies": []}',
+    '- about: decide this first. Whose subject is the question about? "wearer": it asks about something the wearer has been describing in their own WEARER lines (their product, their work, their plan), which only the wearer knows. "other": it asks what the wearer thinks of something the other person described. "unknown": the transcript has no labels, or it cannot be told.',
+    '- replies: things the wearer could say back, each max 8 words.',
+    '  When about is "other" or "unknown", exactly 3, in this order:',
     '  1. the sharpest doubt, as a question: aim at the weakest point (a number that does not add up, an unstated assumption, a missing step). If numbers were given, do the arithmetic and use the result.',
     '  2. a missing fact to ask for.',
     '  3. a clear position the wearer could take, with its reason.',
+    '  When about is "wearer", the replies are reminders, not suggestions: up to 3 things the wearer ALREADY SAID in the transcript (WEARER lines) that answer the question, the most direct first, each max 8 words, kept close to the wearer\'s own words. Leave out anything the wearer said that does not answer this question. Never add a fact, a number, a limit or a status the wearer did not say ("not tested yet", "still measuring" are inventions), and never turn the question back on the wearer. When the wearer said nothing that answers it, return an empty list.',
     'Ground every reply in what was actually said. No generic lines. Write in the language being spoken.',
   ].join('\n');
 
@@ -167,11 +177,30 @@
     'If nothing in it is readable or relevant, return {"note": "", "facts": []}. Never guess text you cannot read.',
   ].join('\n');
 
+  // The same question asked without being asked, every few seconds. Most of the time the right answer is "nothing new".
+  var GLANCE_SYSTEM = [
+    'The image is what the wearer of smart glasses is looking at right now, during a conversation. Nobody asked for it: the glasses take a look by themselves every few seconds.',
+    'Reply with ONLY a JSON object: {"note": "", "facts": []}',
+    '- note: only when something in view carries information worth reading: a slide, a screen, a whiteboard, a poster, a document, a label, a product. Say what it is in max 8 words ("Slide: unit economics table"). A person, a room, a desk, or anything with nothing readable on it gets an empty note.',
+    '- facts: max 3 short facts or numbers that are readable in it, each max 6 words.',
+    'ALREADY SEEN says what was read last. If the image shows that same thing and nothing new can be read, return an empty note.',
+    'Never guess text you cannot read. Never describe people.',
+  ].join('\n');
+
+  // Two notes are about the same thing when they share most of their words.
+  function sameNote(a, b) {
+    var wa = String(a || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+    var wb = String(b || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+    if (!wa.length || !wb.length) return false;
+    var shared = wa.filter(function (w) { return wb.indexOf(w) >= 0; }).length;
+    return shared / Math.max(wa.length, wb.length) >= 0.6;
+  }
+
   // ---------- clamp model output to what the lens can show ----------
   var SMALL_TALK = /^(no|not|rush|worries|worry|problem|problems|stress|take|your|time|thanks|thank|you|ok|okay|sure|sounds|good|all|got|it|nice|cool|great|yeah|yes|yep|right|hello|hi|hey|fine|alright|so|well|and|then|just|really|very|much|is|its|it's|that's|thats|i|see|me|too|please|sorry|bye|goodbye|cheers|welcome|you're|youre|don't|dont|of|course|a|the|bit|minute|second|moment|hold|on|wait|one|sec|at|for|to|we|have|there|hurry|need|problemo|perfect|awesome|lovely)?$/i;
 
   function cleanPoint(text) {
-    var gist = strip(words(text, 9));
+    var gist = strip(words(String(text == null ? '' : text).replace(/^\s*(WEARER|OTHER)\s*:\s*/i, ''), 9));
     // A line about someone talking is not a point; the last real headline stays instead.
     if (/^(the\s+)?speaker\b/i.test(gist) || /\b(says?|saying|begins? to say|starts? to say) something\b/i.test(gist)) gist = '';
     if (/\b(about to be|going to be|will be|is being|are being) (explained|discussed|introduced|covered|described|presented)\b/i.test(gist)) gist = '';
@@ -260,13 +289,27 @@
     };
   }
 
+  // The speaker labels are for the models only. If one slips into something the wearer reads, it is
+  // taken out: a label at the start goes, and "the wearer" becomes "you".
+  function unlabel(text) {
+    var t = String(text || '').replace(/^\s*(WEARER|OTHER)\s*:\s*/i, '');
+    t = t.replace(/\bdoes the wearer\b/gi, 'do you').replace(/\bis the wearer\b/gi, 'are you').replace(/\bhas the wearer\b/gi, 'have you')
+      .replace(/\bthe wearer is\b/gi, 'you are').replace(/\bthe wearer has\b/gi, 'you have').replace(/\bthe wearer was\b/gi, 'you were')
+      .replace(/\bthe wearer's\b/gi, 'your').replace(/\bthe wearer\b/gi, 'you')
+      .replace(/^wearer's\b/i, 'Your').replace(/^wearer\b/i, 'You')
+      .replace(/\bwearer's\b/gi, 'your').replace(/\bwearer\b/gi, 'you');
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+  }
   function cleanRecap(raw) {
     var s = raw && typeof raw === 'object' ? raw : {};
+    // In a title the word is simply dropped ("Wearer listening aid demo" -> "Listening aid demo").
+    var title = String(s.title || '').replace(/\b(the\s+)?wearer('s)?\s*/gi, '').replace(/^\s*(OTHER)\s*:\s*/i, '');
+    title = strip(words(title, 5));
     return {
-      title: strip(words(s.title, 5)) || 'Conversation',
-      points: list(s.points, 3, 9).map(strip),
-      actions: list(s.actions, 3, 9).map(strip),
-      open: hasLetters(s.open) ? strip(words(s.open, 12)).replace(/\?*$/, '') + '?' : '',
+      title: (title ? title.charAt(0).toUpperCase() + title.slice(1) : '') || 'Conversation',
+      points: list(s.points, 3, 9).map(strip).map(unlabel),
+      actions: list(s.actions, 3, 9).map(strip).map(unlabel),
+      open: hasLetters(s.open) ? unlabel(strip(words(s.open, 12))).replace(/\?*$/, '') + '?' : '',
     };
   }
 
@@ -298,7 +341,7 @@
       phase: 'standby',            // standby | live | recap | brief
       listening: true,
       thinking: false,
-      headline: '', term: null, scene: null, ask: '', turn: null, seen: null,
+      headline: '', term: null, scene: null, ask: '', askFor: '', turn: null, seen: null,
       recap: null, brief: null, next: null, open: [],
       notice: null,
       host: {},                    // whatever the host reports: ears, mic name, battery
@@ -314,6 +357,7 @@
     var deepEpoch = 0;                   // bumps when the subject changes, so a picture of the old subject is dropped
     var wordsAtHeadline = 0;             // how much had been said when the headline last changed
     var emptyDeeps = 0;                  // pictures in a row that came back with nothing drawable
+    var lookBusy = false;                // one photo is being read
     var wordsAtLastDeep = 0;
     var day = [];                  // [{id,title,start,end,location,notes}]
     var briefed = {};
@@ -333,9 +377,35 @@
       var all = transcript.map(function (x) { return x.text; }).join(' ').split(/\s+/);
       return all.slice(-n).join(' ');
     }
-    // One line per stretch of speech: with no speaker labels, the pauses are the only hint of who is talking.
+    // One line per stretch of speech. Glasses that can tell the wearer's voice from others' (it is far
+    // louder at their microphones) say whose each line was; without that, the pauses are the only hint.
+    function labelled(x) { return (x.who === 'me' ? 'WEARER: ' : x.who === 'them' ? 'OTHER: ' : '') + x.text; }
+    // Who is doing the explaining right now, counted in words over the last stretch of speech whose
+    // voice is known: 'me' (the wearer), 'them', or '' for a back-and-forth or when nobody can tell.
+    function explainer() {
+      var mine = 0, theirs = 0, seen = 0;
+      for (var i = transcript.length - 1; i >= 0 && seen < 80; i--) {
+        var n = countWords(transcript[i].text);
+        if (transcript[i].who === 'me') mine += n; else if (transcript[i].who === 'them') theirs += n;
+        seen += n;
+      }
+      if (mine + theirs < 12) return '';
+      return mine >= 2 * theirs ? 'me' : theirs >= 2 * mine ? 'them' : '';
+    }
+    // Over the whole conversation: has the wearer done most of the talking (a pitch, then questions)?
+    function mostlyMine() {
+      var mine = 0, theirs = 0;
+      transcript.forEach(function (x) {
+        var n = countWords(x.text);
+        if (x.who === 'me') mine += n; else if (x.who === 'them') theirs += n;
+      });
+      return mine >= 20 && mine >= 1.5 * theirs;
+    }
+    function explainerLine(who) {
+      return '\nWHO IS EXPLAINING: ' + (who === 'me' ? 'the wearer' : who === 'them' ? 'the other person' : 'not known');
+    }
     function transcriptText(maxChars, upTo) {
-      var all = transcript.slice(0, upTo == null ? transcript.length : upTo).map(function (x) { return x.text; }).join('\n');
+      var all = transcript.slice(0, upTo == null ? transcript.length : upTo).map(labelled).join('\n');
       return all.length > maxChars ? '…' + all.slice(-maxChars) : all;
     }
     // The headline changes when the point moves, not on every sentence. A new subject shows at once;
@@ -409,23 +479,35 @@
     function pumpFast() {
       if (fastBusy || !fastWaiting || state.phase !== 'live') return;
       if (!state.headline && totalWords() < 6) return;       // two or three words are not a point yet
-      var chunk = transcript.slice(fastUpTo).map(function (x) { return x.text; }).join('\n');
+      var newest = transcript.slice(fastUpTo);
+      var said = newest.map(function (x) { return x.text; }).join('\n');
+      var chunk = newest.map(labelled).join('\n');
+      // The wearer's own words are never a question put to the wearer.
+      var allMine = newest.length > 0 && newest.every(function (x) { return x.who === 'me'; });
       // A word or two on their own are usually a stray fragment: wait a moment for what follows.
-      if (countWords(chunk) < 3 && !/\?\s*$/.test(chunk) && now() - lastSpeechAt < 1500) return;
+      if (countWords(said) < 3 && !/\?\s*$/.test(said) && now() - lastSpeechAt < 1500) return;
       fastBusy = true;
       var before = fastUpTo;
       fastUpTo = transcript.length; fastWaiting = 0;
       var mySession = session;
+      var who = explainer();
+      if (who !== 'me' && mostlyMine()) who = 'me';       // a pitch followed by questions is still the wearer's subject
       var user = 'TRANSCRIPT SO FAR:\n' + (transcriptText(2400, before) || '(nothing yet)') +
         '\n\nNEWEST WORDS:\n' + chunk +
         '\n\nPREVIOUS GIST: ' + (state.headline || 'none yet') +
         (state.headline && totalWords() - wordsAtHeadline >= 35
           ? '\n(That gist has stood for ' + (totalWords() - wordsAtHeadline) + ' words. Check that it still says what they are talking about now.)' : '') +
-        '\nQUESTION THE LENS SUGGESTED: ' + (state.ask || 'none');
+        (state.askFor === 'me'
+          ? '\nQUESTION THE LENS EXPECTS THE OTHER PERSON TO ASK: ' + (state.ask || 'none')
+          : '\nQUESTION THE LENS SUGGESTED: ' + (state.ask || 'none')) +
+        (who ? explainerLine(who) : '');
       callJSON('fast', FAST_SYSTEM, user, FAST_SCHEMA, 'gist_fast').then(function (r) {
         state.perf.fastMs = state.perf.fastMs.concat(r.ms).slice(-12);
         if (mySession !== session) return;
         var f = cleanFast(r.json);
+        if (allMine) f.turn = null;
+        // Asked about their own subject, the wearer gets reminders of what they said, not suggestions.
+        if (f.turn && who === 'me') f.turn.kind = 'recall';
         if (f.gist && !(f.move === 'same' && state.headline)) {
           var newSubject = f.move === 'new' && !!state.headline && f.gist !== state.headline;
           setHeadline(f.gist, f.move === 'new');
@@ -433,14 +515,14 @@
             // A different subject: the old picture and question would now mislead, so the stage is cleared
             // and the deep lane draws the new one straight away.
             deepEpoch += 1;
-            state.scene = null; state.ask = ''; state.term = null;
+            state.scene = null; state.ask = ''; state.askFor = ''; state.term = null;
             deepDirty = true; lastDeepAt = 0;
             if (!deepBusy) pumpDeep();
           }
         }
         if (f.term) { state.term = f.term; termAt = now(); }
         state.turn = f.turn;
-        state.notice = null;
+        if (state.notice && state.notice.kind === 'lag') state.notice = null;
         if (f.turn && f.turn.asked !== lastAsked) sharpenTurn(f.turn.asked, mySession);
         if (!f.turn) lastAsked = '';
         if (f.look && requestLook && now() - lastLookAt > cfg.lookMinGapMs) {
@@ -457,11 +539,21 @@
     // The fast lane's replies show at once; the strong model's replace them a moment later.
     function sharpenTurn(asked, mySession) {
       lastAsked = asked;
-      var user = 'CONVERSATION SO FAR:\n' + transcriptText(3000) + '\n\nTHEY JUST ASKED THE WEARER: ' + asked;
+      var who = explainer();
+      if (who !== 'me' && mostlyMine()) who = 'me';
+      var user = 'CONVERSATION SO FAR:\n' + transcriptText(3000) + '\n\nTHEY JUST ASKED THE WEARER: ' + asked +
+        '\nWHO HAS DONE MOST OF THE EXPLAINING: ' + (who === 'me' ? 'the wearer' : who === 'them' ? 'the other person' : 'not known');
       callJSON('deep', TURN_SYSTEM, user, TURN_SCHEMA, 'gist_turn').then(function (r) {
         var replies = list(r.json && r.json.replies, 3, 9).map(strip);
-        if (mySession !== session || !state.turn || state.turn.asked !== asked || replies.length < 2) return;
-        state.turn = { asked: asked, replies: replies };
+        var about = r.json && r.json.about;
+        if (mySession !== session || !state.turn || state.turn.asked !== asked) return;
+        if (about === 'wearer') {
+          // Reminders of what the wearer said: fewer than three, or none, is a true answer too.
+          state.turn = { asked: asked, replies: replies, kind: 'recall' };
+        } else {
+          if (replies.length < 2) return;
+          state.turn = { asked: asked, replies: replies };
+        }
         emit();
       }).catch(function (err) { fail('deep', err); });
     }
@@ -478,12 +570,15 @@
       var mySession = session, myEpoch = deepEpoch, hadScene = !!state.scene, again = false;
       var prev = state.scene ? JSON.stringify(state.scene) : 'none yet';
       var ctx = currentEvent();
+      var who = explainer();
       var user = (ctx ? 'CONTEXT: the wearer\'s calendar says this is "' + ctx.title + '".\n\n' : '') +
         'CONVERSATION SO FAR:\n' + transcriptText(3000) +
         '\n\nNEWEST WORDS:\n' + lastWords(45) +
         '\n\nTHE HEADLINE ON THE LENS: ' + (heldGist || state.headline || 'none yet') +
         '\nPREVIOUS VISUAL: ' + prev +
-        '\nPREVIOUS QUESTION: ' + (state.ask || 'none');
+        '\nPREVIOUS QUESTION' + (who && state.ask ? (state.askFor === 'me' ? ' (one the wearer should expect)' : ' (one for the wearer to ask)') : '') +
+        ': ' + (state.ask || 'none') +
+        (who ? explainerLine(who) : '');
       callJSON('deep', DEEP_SYSTEM, user, DEEP_SCHEMA, 'gist_deep').then(function (r) {
         state.perf.deepMs = state.perf.deepMs.concat(r.ms).slice(-12);
         if (mySession !== session || myEpoch !== deepEpoch) return;   // the talk has moved on since this was asked
@@ -491,7 +586,14 @@
         // Now and then the model announces a picture and sends none. Ask once more straight away.
         var said = r.json && r.json.change;
         if ((said === 'new' || said === 'grow') && !d.drew && emptyDeeps < 1) { emptyDeeps += 1; again = true; } else emptyDeeps = 0;
+        var askBefore = state.ask;
         state.scene = d.scene; state.ask = d.ask;
+        // With the wearer explaining, the question is one to expect from the listener, not one to ask.
+        // When nobody can tell who is explaining, a question that stayed word for word keeps its kind.
+        if (!d.ask) state.askFor = '';
+        else if (d.kept) { /* as it was */ }
+        else if (who === 'me') state.askFor = 'me';
+        else if (who === 'them' || d.ask !== askBefore) state.askFor = '';
         // The headline and the picture must be about the same thing. When the picture starts over on its
         // own while the headline has stood still for a while (or there is no headline yet), the headline
         // follows the picture.
@@ -511,7 +613,7 @@
       transcript = []; fastUpTo = 0; fastWaiting = 0; deepDirty = false; wordsAtLastDeep = 0; lastAsked = '';
       headlineAt = 0; heldGist = ''; wordsAtHeadline = 0;
       state.phase = 'live'; phaseAt = now(); state.startedAt = now();
-      state.headline = ''; state.term = null; state.scene = null; state.ask = ''; state.turn = null; state.seen = null;
+      state.headline = ''; state.term = null; state.scene = null; state.ask = ''; state.askFor = ''; state.turn = null; state.seen = null;
       state.recap = null; state.brief = null; state.thinking = false; state.notice = null;
     }
 
@@ -523,7 +625,7 @@
       transcript = []; fastUpTo = 0; fastWaiting = 0; deepDirty = false; heldGist = '';   // the words themselves are not kept
       state.turn = null; state.thinking = false;
       if (!enough) {
-        state.headline = ''; state.term = null; state.scene = null; state.ask = ''; state.seen = null;
+        state.headline = ''; state.term = null; state.scene = null; state.ask = ''; state.askFor = ''; state.seen = null;
         state.phase = 'standby'; phaseAt = now(); refreshNext(); emit(); return;
       }
       state.phase = 'recap'; phaseAt = now(); state.recap = null; state.thinking = true; emit();
@@ -602,13 +704,15 @@
       version: VERSION,
       state: function () { return state; },
 
-      // New speech, already transcribed.
-      heard: function (text) {
+      // New speech, already transcribed. `who` is 'me' when the host knows the words were the wearer's
+      // own, 'them' when it knows they were someone else's, and anything else when it cannot tell.
+      // `number` is the host's own count of the piece, so a later relabel can find it.
+      heard: function (text, who, number) {
         text = String(text || '').replace(/\s+/g, ' ').trim();
         if (!text || !state.listening) return;
         if (state.phase !== 'live') startConversation();
         lastSpeechAt = now();
-        transcript.push({ t: lastSpeechAt, text: text });
+        transcript.push({ t: lastSpeechAt, text: text, who: who === 'me' || who === 'them' ? who : '', n: number > 0 ? number : 0 });
         fastWaiting += 1;
         deepDirty = true;
         pumpFast();
@@ -616,28 +720,64 @@
         if (totalWords() - wordsAtLastDeep >= 6 || !state.scene) pumpDeep();
       },
 
+      // The host could not tell whose voice some earlier pieces were when it heard them, and now can
+      // (it needed to hear both voices first). `labels` maps piece numbers to 'me' or 'them'. Only
+      // pieces that had no label get one; nothing is redrawn, the next model call simply knows more.
+      relabel: function (labels) {
+        if (!labels || typeof labels !== 'object') return;
+        transcript.forEach(function (x) {
+          var who = x.n ? labels[x.n] : null;
+          if (!x.who && (who === 'me' || who === 'them')) x.who = who;
+        });
+      },
+
       // What the wearer is looking at (JPEG, base64). Only hosts with a camera call this.
-      look: function (jpegBase64) {
-        if (!jpegBase64 || !state.listening) return Promise.resolve(null);
+      // `quiet` is a look nobody asked for: it says nothing unless it finds something new worth reading.
+      look: function (jpegBase64, quiet) {
+        if (!jpegBase64 || !state.listening || lookBusy) return Promise.resolve(null);
+        lookBusy = true;
         var mySession = session;
         lastLookAt = now();
-        state.notice = { kind: 'look', text: 'Reading what you see' }; emit();
-        return callJSON('deep', LOOK_SYSTEM, 'What is the wearer looking at?', LOOK_SCHEMA, 'gist_look', jpegBase64).then(function (r) {
+        if (!quiet) { state.notice = { kind: 'look', text: 'Reading what you see' }; noticeUntil = now() + 30000; emit(); }
+        var last = state.seen ? state.seen.note + (state.seen.facts.length ? ' (' + state.seen.facts.join('; ') + ')' : '') : 'nothing yet';
+        var system = quiet ? GLANCE_SYSTEM : LOOK_SYSTEM;
+        var user = quiet ? 'ALREADY SEEN: ' + last + '\nWhat is the wearer looking at?' : 'What is the wearer looking at?';
+        return callJSON('deep', system, user, LOOK_SCHEMA, 'gist_look', jpegBase64).then(function (r) {
           var note = strip(words(r.json && r.json.note, 9));
           var facts = list(r.json && r.json.facts, 3, 7).map(strip);
           if (mySession !== session) return null;
-          state.notice = null;
-          if (hasLetters(note)) {
+          if (state.notice && state.notice.kind === 'look') state.notice = null;
+          var again = !!state.seen && sameNote(state.seen.note, note);
+          if (hasLetters(note) && !(quiet && again)) {
             state.seen = { note: note, facts: facts, at: now() };
             state.notice = { kind: 'seen', text: note }; noticeUntil = now() + 8000;
-            if (state.phase === 'live') {
+            if (state.phase === 'live' && !again) {
               transcript.push({ t: now(), text: '[Seen: ' + note + (facts.length ? ' — ' + facts.join('; ') : '') + ']' });
               deepDirty = true; wordsAtLastDeep = 0; lastDeepAt = 0; pumpDeep(true);
             }
+          } else if (!quiet && !hasLetters(note)) {
+            state.notice = { kind: 'look', text: 'Nothing to read there' }; noticeUntil = now() + 4000;
           }
           emit();
           return state.seen;
-        }).catch(function (err) { fail('deep', err); state.notice = null; emit(); return null; });
+        }).catch(function (err) {
+          fail('deep', err);
+          if (state.notice && state.notice.kind === 'look') state.notice = null;
+          emit(); return null;
+        }).finally(function () { lookBusy = false; });
+      },
+
+      // The host is about to take a photo: say so at once, before the picture has arrived.
+      lookSoon: function () {
+        if (!state.listening) return;
+        state.notice = { kind: 'look', text: 'Looking' }; noticeUntil = now() + 6000; emit();
+      },
+
+      // The host has something short to tell the wearer: the microphone changed, looking was paused.
+      tell: function (text, ms) {
+        text = strip(words(text, 8));
+        if (!text) return;
+        state.notice = { kind: 'host', text: text }; noticeUntil = now() + (Number(ms) || 6000); emit();
       },
 
       setListening: function (on) {
@@ -682,14 +822,23 @@
         return chain.then(snapshot);
       },
 
-      setHost: function (info) { state.host = Object.assign({}, state.host, info || {}); emit(); },
+      setHost: function (info) {
+        var was = state.host && state.host.ears;
+        state.host = Object.assign({}, state.host, info || {});
+        // Listening has just been switched on: an old recap or brief makes way, so the wearer sees at once that it took.
+        var now_ = state.host.ears;
+        if (now_ && now_ !== 'none' && (!was || was === 'none') && (state.phase === 'recap' || state.phase === 'brief') && !state.thinking) {
+          state.phase = 'standby'; phaseAt = now(); refreshNext();
+        }
+        emit();
+      },
 
       loadMemory: function (m) { memory = Array.isArray(m) ? m.slice(0, 8) : []; refreshOpen(); emit(); },
       memory: function () { return memory; },
       forget: function () {
         session++; transcript = []; fastUpTo = 0; fastWaiting = 0; heldGist = ''; memory = []; briefed = {}; preps = {};
         state.open = []; state.recap = null; state.brief = null; state.seen = null;
-        state.headline = ''; state.term = null; state.scene = null; state.ask = ''; state.turn = null; state.thinking = false;
+        state.headline = ''; state.term = null; state.scene = null; state.ask = ''; state.askFor = ''; state.turn = null; state.thinking = false;
         state.phase = 'standby'; phaseAt = now();
         if (opts.onMemory) { try { opts.onMemory(memory); } catch (e) { /* best effort */ } }
         emit();
@@ -699,7 +848,7 @@
       tick: function () {
         var t = now();
         if (state.term && termAt && t - termAt > 15000) { state.term = null; emit(); }
-        if (state.notice && state.notice.kind === 'seen' && t > noticeUntil) { state.notice = null; emit(); }
+        if (state.notice && (state.notice.kind === 'seen' || state.notice.kind === 'look' || state.notice.kind === 'host') && t > noticeUntil) { state.notice = null; emit(); }
         if (state.phase === 'live' && lastSpeechAt && t - lastSpeechAt > cfg.silenceEndMs) return endConversation('silence');
         if (state.phase === 'live' && heldGist && t - headlineAt >= cfg.headlineHoldMs) { setHeadline(heldGist, true); emit(); }
         if (state.phase === 'live' && fastWaiting && !fastBusy) pumpFast();   // a short line that waited for company
@@ -760,14 +909,16 @@
     var out = { title: '', sub: '', body: '', say: '' };
     if (!s) return out;
     if (s.phase === 'live' && s.turn) {
-      out.title = s.turn.asked; out.sub = 'You could say';
+      var recall = s.turn.kind === 'recall';
+      out.title = s.turn.asked; out.sub = !s.turn.replies.length ? 'They asked you' : recall ? 'You already said' : 'You could say';
       out.body = s.turn.replies.map(function (r, i) { return (i + 1) + '. ' + r; }).join('\n');
-      out.say = s.turn.replies.length ? 'You could say: ' + s.turn.replies[0] : '';
+      out.say = s.turn.replies.length ? (recall ? 'You said: ' : 'You could say: ') + s.turn.replies[0] : '';
     } else if (s.phase === 'live') {
       out.title = s.headline || 'Listening for the point';
       out.sub = sceneLine(s.scene) || (s.term ? s.term.word + ': ' + s.term.means : '');
-      out.body = s.ask ? 'Ask: ' + s.ask : '';
-      out.say = s.ask ? 'Ask: ' + s.ask : '';
+      var lead = s.askFor === 'me' ? 'Expect: ' : 'Ask: ';
+      out.body = s.ask ? lead + s.ask : '';
+      out.say = s.ask ? lead + s.ask : '';
     } else if (s.phase === 'brief' && s.brief) {
       out.title = s.brief.title;
       out.sub = (s.brief.inMin > 0 ? 'In ' + s.brief.inMin + ' min' : 'Now') + (s.brief.where ? ' · ' + s.brief.where : '');
