@@ -1,17 +1,83 @@
+<p align="center">
+  <img src="docs/hero.png" width="100%" alt="Aside. Better with every conversation. A proactive agent for Meta Ray-Ban Display, powered by Meta Muse. Beside the name, the lens: the point so far, a small diagram of the idea, one piece of jargon in plain words, and a question to ask.">
+</p>
+
+<p align="center">
+  <a href="#what-you-see">What you see</a>&nbsp;&nbsp;&nbsp;
+  <a href="#how-it-works">How it works</a>&nbsp;&nbsp;&nbsp;
+  <a href="#where-aside-goes-next">Next</a>&nbsp;&nbsp;&nbsp;
+  <a href="#try-it-on-the-mac">Try it</a>&nbsp;&nbsp;&nbsp;
+  <a href="#put-it-on-the-glasses">On the glasses</a>&nbsp;&nbsp;&nbsp;
+  <a href="#what-aside-keeps-and-what-it-does-not">Privacy</a>&nbsp;&nbsp;&nbsp;
+  <a href="#status">Status</a>
+</p>
+
 # Aside
 
-Better with every conversation. While someone explains something to you, your glasses show the point so far, a small picture of the idea that changes shape with what is being said, and the one question worth asking. When they put a question to you, Aside offers three things you could say. Afterwards it keeps a short recap and what is left for you to do, and uses that to brief you before your next event.
+**You heard every word and still missed the point.** Aside is for that moment.
 
-Built for Meta Ray-Ban Display (and, by voice, for Ray-Ban Meta Gen 2) at Junction 2026.
+While someone explains something to you, your glasses show **the point so far**, **a small picture of the idea** that changes shape with what is being said, and **the one question worth asking**. When they put a question to you, Aside offers three things you could say. Afterwards it keeps a short recap and what is left for you to do, and uses that to brief you before your next event.
 
-## What is in this folder
+Nobody asks it anything. It listens, and it offers. That is what we mean by a proactive agent.
 
-| Folder | What it is |
-| --- | --- |
-| `lens/` | The lens: one web page, 600×600, that draws the HUD. `gist-core.js` is the brain (prompts, model calls, the conversation's life cycle). The same files run on the Mac, in the iPhone app and in the glasses' own browser. |
-| `brain/` | The Mac host: serves the lens, talks to the model with the key in `key.txt`, and can open an outside link for the glasses. No dependencies beyond Node 20. |
-| `ios/` | The iPhone app. Listens through the glasses, turns speech into text on the phone, runs the same brain, and puts the lens on the glasses' display. |
-| `samples/` | A sample explanation and the scripted answers used when there is no key. |
+Built for Meta Ray-Ban Display with the Neural Band (and, by voice, for Ray-Ban Meta Gen 2) at Junction 2026, for Meta's challenge *AI Glasses for Everyone, Everyday*. The thinking is Meta Muse.
+
+## What you see
+
+| While you listen | When they ask you | When you explain |
+| :---: | :---: | :---: |
+| <img src="docs/lens-listen.jpg" width="240" alt="The lens while listening: a headline, a four-box diagram, a jargon line and a question to ask"> | <img src="docs/lens-your-turn.jpg" width="240" alt="The lens when a question is put to the wearer: what they asked, and three things you could say"> | <img src="docs/lens-explain.jpg" width="240" alt="The lens when the wearer explains: the point, a diagram, and the question to expect"> |
+| The point so far,<br>a picture of the idea,<br>jargon in plain words,<br>and the one question to ask. | What they asked, and<br>three things you could say. | The question to expect<br>from your listener. |
+
+**The picture changes shape with the idea:** a map, a loop, steps, two sides, numbers.
+
+<p align="center">
+  <img src="docs/lens-listen.jpg" width="19%" alt="A map">
+  <img src="docs/shape-loop.jpg" width="19%" alt="A loop">
+  <img src="docs/shape-steps.jpg" width="19%" alt="Steps">
+  <img src="docs/shape-sides.jpg" width="19%" alt="Two sides">
+  <img src="docs/shape-numbers.jpg" width="19%" alt="Numbers">
+</p>
+
+These are the lens itself, 600 × 600, drawn by the same code that runs on the glasses, here replaying the sample conversation in `samples/`.
+
+## How it works
+
+```mermaid
+flowchart LR
+  G["Ray-Ban Display<br/>microphones"] -->|sound| P["iPhone<br/>lifts quiet voices<br/>marks whose voice<br/>turns speech into text"]
+  P -->|text| E["Muse Ember<br/>the point, jargon, your turn<br/>about 1 s"]
+  P -->|text| W["Muse Wonder<br/>the picture, the question, the recap<br/>2 to 4 s"]
+  E --> L["The lens<br/>one web page, 600 x 600"]
+  W --> L
+  L -->|frames| D["Ray-Ban Display"]
+  B["Neural Band"] -->|"pinch: Look, End talk, Stop"| P
+```
+
+- **Two lanes that never wait for each other.** The fast lane decides after each stretch of speech whether the line on the glasses is still true. The deep lane draws the idea and picks the question.
+- **It follows the point, and does not echo the words.** Small talk, agreement and filler leave the lens alone. A new claim sharpens the line. A new subject replaces it at once.
+- **It knows which voice is yours.** The wearer arrives fifteen to twenty decibels louder than anyone across a table, so each line is marked as yours or theirs with no voice model and nothing to enrol.
+- **No audio is ever stored.** Speech becomes text and the sound is thrown away at once.
+
+### Models
+
+Two lanes, both Meta Muse through the Model API (`https://api.meta.ai/v1`):
+
+- headline, jargon and "your turn": `muse-ember-1.0`, low effort, about a second
+- the picture, the question and the recap: `muse-wonder-1.0`, minimal effort, two to four seconds
+
+Override them in `.env` (see `.env.example`). `muse-spark-1.3` costs about a third as much for the second lane and is slower.
+
+## Where Aside goes next
+
+**Every conversation makes you better at the next one.** Today Aside is proactive inside a conversation. Next, the same agent works across your day, without being asked.
+
+| Before | While you listen | While you explain | After |
+| :---: | :---: | :---: | :---: |
+| <img src="docs/next-before.jpg" width="180" alt="Concept frame: what is up next, and three things to go in knowing"> | <img src="docs/next-listen.jpg" width="180" alt="Concept frame: three numbers from the talk, and a note that they do not add up"> | <img src="docs/next-explain.jpg" width="180" alt="Concept frame: two minutes without a question, and a term you never explained"> | <img src="docs/next-after.jpg" width="180" alt="Concept frame: the recap, with a follow-up already drafted"> |
+| It walks you in. | It checks the sums. | It shows where<br>you lost them. | It follows through. |
+
+*Concept frames: the real lens, drawing states we wrote by hand.*
 
 ## Try it on the Mac
 
@@ -31,11 +97,25 @@ Once the glasses are in reach the lens stands by on their display, with real but
 
 **The lens as a web app on the glasses.** Double-click **Start Gist + glasses link** instead of Start Gist. It opens a temporary public address for this Mac (a Cloudflare quick tunnel; the tool is downloaded the first time) and a setup page with two QR codes: A adds Aside to the glasses, B links the iPhone app to this Mac.
 
-## How it follows a conversation
+## What is in this repo
+
+| Folder | What it is |
+| --- | --- |
+| `lens/` | The lens: one web page, 600×600, that draws the HUD. `gist-core.js` is the brain (prompts, model calls, the conversation's life cycle). The same files run on the Mac, in the iPhone app and in the glasses' own browser. |
+| `brain/` | The Mac host: serves the lens, talks to the model with the key in `key.txt`, and can open an outside link for the glasses. No dependencies beyond Node 20. |
+| `ios/` | The iPhone app. Listens through the glasses, turns speech into text on the phone, runs the same brain, and puts the lens on the glasses' display. |
+| `samples/` | A sample explanation and the scripted answers used when there is no key. |
+
+## Under the hood
+
+<details>
+<summary><b>How it follows a conversation</b></summary>
 
 The fast lane does not echo the words. After each stretch of speech it first decides whether the line on the glasses is still a true answer to "what are they talking about right now?". Small talk, agreement, filler and misheard fragments leave the lens alone. A new claim sharpens the line. A new subject replaces it at once and clears the picture. The deep lane draws the idea on the table, keeps the picture through chit-chat, and changes scene when the shape of the idea changes (a map, a loop, steps, two sides, numbers). The glasses hear the wearer too. With the glasses' own microphones each line is marked as the wearer's or someone else's (see below); without that, both lanes are told that the transcript holds everyone's words with no speaker labels. An opinion or a disputed claim is shown as "Claim: ...", so the lens never states as fact what is only someone's view.
 
-## Hearing the other person
+</details>
+<details>
+<summary><b>Hearing the other person, and knowing whose voice is whose</b></summary>
 
 The glasses' microphones sit on the frame, a few centimetres from the wearer's mouth, so the wearer arrives much louder than the person across the table, and a speech recogniser follows the loud voice and drops the quiet one. The SDK gives an app one sound feed with two settings (sample rate and channel count); there is no way to aim it at the person in front.
 
@@ -47,19 +127,25 @@ While it listens, the phone shows what the glasses hear: the last eight seconds 
 
 In a loud room nothing replaces being close. "Listen with: This iPhone's microphone" is there for that: the phone goes next to the speaker, the glasses still show the lens, and the lens says which microphone is in use.
 
-## Looking
+</details>
+<details>
+<summary><b>Looking</b></summary>
 
 **Look** takes one photo with the glasses' camera and reads what is in it: a slide, a screen, a whiteboard, a label. No photo is kept, and people are never described.
 
 Aside can also look by itself every ten seconds during a conversation ("Look by itself" in Settings). It is off to begin with, because of what the real glasses showed: the same camera stream carries the microphones, and each photo stopped the sound for three to four seconds. Hearing matters more than seeing, so if it is switched on and a photo costs more than a second and a half of sound, Aside switches it off again and says so. Look still works when you press it.
 
-## When the network or the link is bad
+</details>
+<details>
+<summary><b>When the network or the link is bad</b></summary>
 
 - A model request that has not answered within 1.5 s is also sent over mobile data, and after 3 s on a fresh connection. The first answer is used. While the Wi-Fi keeps losing that race, mobile data sets off a quarter of a second in instead. Settings, Brain has a one-tap test of the mobile data route.
 - Frames for the display get smaller when Bluetooth is slow (600, 420, 300 px, then plain text) and larger again when it recovers.
 - If the display stops taking frames, Aside starts it again; if that does not help and nothing else depends on the session, it opens a fresh one.
 
-## When the glasses change state
+</details>
+<details>
+<summary><b>When the glasses change state</b></summary>
 
 | What happens | What Aside does |
 | --- | --- |
@@ -71,14 +157,7 @@ Aside can also look by itself every ten seconds during a conversation ("Look by 
 | The glasses are folded, switched off or out of reach | Listening stops with a plain message. When they are back, the lens stands by on them again without being asked. |
 | Another glasses app takes the display | Aside returns a few seconds after it closes. Closed three times in a row, it stays away until you ask for it. |
 
-## Models
-
-Two lanes, both Meta Muse through the Model API (`https://api.meta.ai/v1`):
-
-- headline, jargon and "your turn": `muse-ember-1.0`, low effort, about a second
-- the picture, the question and the recap: `muse-wonder-1.0`, minimal effort, two to four seconds
-
-Override them in `.env` (see `.env.example`). `muse-spark-1.3` costs about a third as much for the second lane and is slower.
+</details>
 
 ## What Aside keeps, and what it does not
 
@@ -89,10 +168,11 @@ Override them in `.env` (see `.env.example`). `muse-spark-1.3` costs about a thi
 - A photo taken for Look is shrunk, sent to the model to be read, and dropped. It is never stored, and the model is told never to describe people.
 - The Mac only answers its own browser. From outside it is reachable only through the link, and only with the link's code.
 
+## Status
 
-## Status on 14 November 2026
+*As of 14 November 2026, in the hall at Junction.*
 
-**Run on Ray-Ban Display with Neural Band, two pairs, about four hours in all (afternoon and evening, in the hall at Junction):** pairing in Developer Mode; the lens standing by on the display between conversations; the glasses' microphones through the camera stream, on a session kept from the conversation before; transcription on the iPhone; Muse on the venue Wi-Fi and, by itself, over mobile data; conversations followed from the first sentence to the recap; the recap kept; Look. When the camera stream would not start, Aside carried on through the glasses' Bluetooth microphone and said so, and the conversation was still followed.
+**Run on Ray-Ban Display with Neural Band, two pairs, about four hours in all (afternoon and evening, in the hall at Junction):** pairing in Developer Mode; the lens standing by on the display between conversations; the glasses' microphones through the camera stream, on a session kept from the conversation before; transcription on the iPhone; Muse on the venue Wi-Fi and, by itself, over mobile data; conversations followed from the first sentence to the recap; the recap kept; Look; the buttons under the lens, moved between and pressed with the Neural Band. When the camera stream would not start, Aside carried on through the glasses' Bluetooth microphone and said so, and the conversation was still followed.
 
 **What the real glasses showed, and what was changed the same evening:**
 
@@ -109,4 +189,4 @@ Override them in `.env` (see `.env.example`). `muse-spark-1.3` costs about a thi
 
 **Seen on the real glasses, not yet checked line by line:** whose-voice marking (the phone showed "You:" and "Them:" on the right lines in the conversations watched; the brain's use of it was checked against the real model with marked transcripts).
 
-**Not yet confirmed on the real glasses:** the buttons pressed with the band, and a pinch opening the menu.
+**Still to confirm on the real glasses:** the setting that keeps the buttons hidden until a pinch.
