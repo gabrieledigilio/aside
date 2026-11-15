@@ -194,3 +194,5 @@ Aside can also look by itself every ten seconds during a conversation ("Look by 
 **Seen on the real glasses, not yet checked line by line:** whose-voice marking (the phone showed "You:" and "Them:" on the right lines in the conversations watched; the brain's use of it was checked against the real model with marked transcripts).
 
 **Still to confirm on the real glasses:** the setting that keeps the buttons hidden until a pinch.
+
+Additional demo video: https://youtube.com/shorts/rBJjxt0dza0
